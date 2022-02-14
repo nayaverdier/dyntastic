@@ -235,7 +235,7 @@ class Dyntastic(_TableMetadata, BaseModel):
                 self.refresh()
 
             return response
-        except self.ConditionException:
+        except self.ConditionException():
             if require_condition:
                 raise
 
@@ -245,7 +245,6 @@ class Dyntastic(_TableMetadata, BaseModel):
         self.__dict__.update(full_dict)
 
     @classmethod
-    @property
     def ConditionException(cls):
         return cls._dynamodb_table().meta.client.exceptions.ConditionalCheckFailedException
 

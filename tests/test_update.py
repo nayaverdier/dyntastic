@@ -219,7 +219,7 @@ def condition_tester(request):
             item.update(action, condition=failure_case)
             assert item.my_str == "foo"
         else:
-            with pytest.raises(item.ConditionException, match="The conditional request failed"):
+            with pytest.raises(item.ConditionException(), match="The conditional request failed"):
                 item.update(action, condition=failure_case, require_condition=True)
 
             item.refresh()
