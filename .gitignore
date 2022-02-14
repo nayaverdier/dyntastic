@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+pip-wheel-metadata/
+wheels/
+share/python-wheels/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Unit test / coverage reports
+.coverage
+.coverage.*
+coverage.xml
+.pytest_cache/
+
+# Environments
+.venv
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
