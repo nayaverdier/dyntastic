@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, List, Optional, Set
@@ -8,6 +9,8 @@ from moto import mock_dynamodb2
 from pydantic import BaseModel, Field
 
 from dyntastic import Dyntastic, Index
+
+os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 
 
 @pytest.fixture(autouse=True)
