@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from decimal import Decimal
 
@@ -47,7 +48,43 @@ def test_set_existing_attribute(item):
 
 def test_no_refresh(item):
     item.update(A.my_str.set("bar"), refresh=False)
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Dyntastic instance was not refreshed after update. "
+            "Call refresh() or ignore_unrefreshed() to ignore safety checks"
+        ),
+    ):
+        item.my_str
+
+    # make sure these attributes always are accessible
+    assert item.ConditionException
+    assert item.refresh
+    assert item.ignore_unrefreshed
+
+    item.refresh()
+    assert item.my_str == "bar"
+
+
+def test_ignore_refresh(item):
+    item.update(A.my_str.set("bar"), refresh=False)
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Dyntastic instance was not refreshed after update. "
+            "Call refresh() or ignore_unrefreshed() to ignore safety checks"
+        ),
+    ):
+        item.my_str
+
+    # make sure these attributes always are accessible
+    assert item.ConditionException
+    assert item.refresh
+    assert item.ignore_unrefreshed
+
+    item.ignore_unrefreshed()
     assert item.my_str == "foo"
+
     item.refresh()
     assert item.my_str == "bar"
 
@@ -263,7 +300,7 @@ def condition_tester(request):
         # string operators
         (A.my_str.begins_with("f"), A.my_str.begins_with("z")),
         (A.my_str.between("f", "food"), A.my_str.between("z", "zebra")),
-        (A.my_str.is_in({"foo", "bar", "baz"}), A.my_str.is_in(A.my_str_set)),
+        (A.my_str.is_in({"foo", "bar", "baz"}), A.my_str.is_in({"d", "e"})),
         (A.my_str.contains("fo"), A.my_str.contains("blah")),
         (A.my_str_set.contains("a"), A.my_str_set.contains(A.my_str)),
         # attribute_type/size/existence functions

@@ -5,7 +5,7 @@ from typing import Any, List, Optional, Set
 from uuid import uuid4
 
 import pytest
-from moto import mock_dynamodb2
+from moto import mock_dynamodb
 from pydantic import BaseModel, Field
 
 from dyntastic import Dyntastic, Index
@@ -15,7 +15,7 @@ os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 
 @pytest.fixture(autouse=True)
 def mock_dynamo():
-    with mock_dynamodb2():
+    with mock_dynamodb():
         yield
 
 

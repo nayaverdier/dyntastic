@@ -12,23 +12,23 @@ long_description = readme + "\n\n" + changelog
 
 
 DEV_REQUIRES = [
-    "black==22.1.0",
-    "boto3-stubs[dynamodb]==1.20.54",
-    "coverage==6.3.1",
+    "black==22.3.0",
+    "boto3-stubs[dynamodb]==1.21.46",
+    "coverage==6.3.2",
     "flake8==4.0.1",
-    "flake8-bugbear==22.1.11",
+    "flake8-bugbear==22.3.23",
     "isort==5.10.1",
-    "moto==3.0.3",
-    "mypy==0.931",
-    "pytest==7.0.0",
+    "moto==3.1.5",
+    "mypy==0.942",
+    "pytest==7.1.2",
     "pytest-cov==3.0.0",
     "pytest-mock==3.7.0",
-    "twine==3.8.0",
+    "twine==4.0.0",
 ]
 
 setup(
     name="dyntastic",
-    version="0.1.0",
+    version="0.2.0",
     description=description,
     long_description=long_description,
     long_description_content_type="text/markdown",

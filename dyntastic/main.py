@@ -5,7 +5,7 @@ from typing import Any, Dict, Generator, Generic, List, Optional, Type, TypeVar,
 import boto3
 import importlib_metadata as _metadata
 from boto3.dynamodb.conditions import ConditionBase
-from pydantic import BaseModel
+from pydantic import BaseModel, PrivateAttr
 
 from .attr import Attr, _UpdateAction, serialize, translate_updates
 from .exceptions import DoesNotExist
@@ -53,6 +53,8 @@ class Index:
 
 
 class Dyntastic(_TableMetadata, BaseModel):
+    _dyntastic_unrefreshed: bool = PrivateAttr(default=False)
+
     @classmethod
     def get(cls: Type[_T], hash_key, range_key=None, *, consistent_read: bool = False) -> _T:
         if cls.__range_key__ and range_key is None:
@@ -230,6 +232,7 @@ class Dyntastic(_TableMetadata, BaseModel):
                 ConditionExpression=condition,
                 **update_data,
             )
+            self._dyntastic_unrefreshed = True
             if refresh:
                 # TODO: utilize ReturnValues in response when possible
                 self.refresh()
@@ -240,10 +243,12 @@ class Dyntastic(_TableMetadata, BaseModel):
                 raise
 
     def refresh(self):
+        self._dyntastic_unrefreshed = False
         data = self.get(self._dyntastic_hash_key, self._dyntastic_range_key)
         full_dict = data.dict(exclude_none=False, exclude_defaults=False, exclude_unset=False, by_alias=False)
         self.__dict__.update(full_dict)
 
+    # Note: This cannot use @classmethod and @property together for python <3.9
     @classmethod
     def ConditionException(cls):
         return cls._dynamodb_table().meta.client.exceptions.ConditionalCheckFailedException
@@ -378,6 +383,25 @@ class Dyntastic(_TableMetadata, BaseModel):
         method = getattr(cls._dynamodb_table(), operation)
         filtered_kwargs = {key: value for key, value in kwargs.items() if value is not None}
         return method(**filtered_kwargs)
+
+    def ignore_unrefreshed(self):
+        self._dyntastic_unrefreshed = False
+
+    def __getattribute__(self, attr: str):
+        # All of the code in this function works to "disable" an instance
+        # that has been updated with refresh=False, to avoid accidentally
+        # working with stale data
+
+        if attr.startswith("_") or attr in {"refresh", "ignore_unrefreshed", "ConditionException"}:
+            return super().__getattribute__(attr)
+
+        if object.__getattribute__(self, "_dyntastic_unrefreshed"):
+            raise ValueError(
+                "Dyntastic instance was not refreshed after update. "
+                "Call refresh() or ignore_unrefreshed() to ignore safety checks"
+            )
+
+        return super().__getattribute__(attr)
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
