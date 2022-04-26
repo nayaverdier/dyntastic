@@ -76,16 +76,24 @@ class _Variables:
         if isinstance(variable, _UpdateFn):
             return variable.build(self)
         elif isinstance(variable, Attr):
+            # TODO: support indexes in the path as well (e.g. "my_list[0].nested_attr")
             data = self.attributes
             key_prefix = "#"
-            variable = variable.name
+            # if the attribute is a nested path, DynamoDB expects each segment to be
+            # in a separate entry in ExpressionAttributeNames
+            variables = variable.name.split(".")
         else:
             data = self.values
             key_prefix = ":"
+            variables = [variable]
 
-        key = f"{key_prefix}{len(data)}"
-        data[key] = variable
-        return key
+        segments = []
+        for var in variables:
+            key = f"{key_prefix}{len(data)}"
+            data[key] = var
+            segments.append(key)
+
+        return ".".join(segments)
 
 
 class _UpdateAction:
@@ -175,7 +183,7 @@ class _ActionRemove(_UpdateAction):
     update_action = "REMOVE"
 
     def __init__(self, path, index: int = None):
-        # using type(...) is not ... as opposed to isinstance to
+        # This uses `type(...) is not ...` instead of `isinstance` to
         # ensure that subtypes of int which might have a different
         # __str__ method cannot allow injection
         if index is not None and type(index) is not int:

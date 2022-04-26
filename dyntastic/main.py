@@ -203,7 +203,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         return ResultPage(items, last_evaluated_key)
 
     def save(self, *, condition: ConditionBase = None) -> dict:
-        data = self.dict()
+        data = self.dict(by_alias=True)
         dynamo_serialized = serialize(data)
         return self._dyntastic_call("put_item", Item=dynamo_serialized, ConditionExpression=condition)
 
@@ -245,8 +245,9 @@ class Dyntastic(_TableMetadata, BaseModel):
     def refresh(self):
         self._dyntastic_unrefreshed = False
         data = self.get(self._dyntastic_hash_key, self._dyntastic_range_key)
-        full_dict = data.dict(exclude_none=False, exclude_defaults=False, exclude_unset=False, by_alias=False)
-        self.__dict__.update(full_dict)
+        # Note: we have to use pydantic's private _iter function here instead of data.dict()
+        # because we don't want nested objects to be converted to dictionaries as well.
+        self.__dict__.update(dict(data._iter(to_dict=False, by_alias=False, exclude_unset=False)))
 
     # Note: This cannot use @classmethod and @property together for python <3.9
     @classmethod

@@ -94,6 +94,11 @@ def test_update_with_Attr(item):
     assert item.my_str == "bar"
 
 
+def test_update_nested_string(item):
+    item.update(A("my_nested_model.sample_field").set("new_value"))
+    assert item.my_nested_model.sample_field == "new_value"
+
+
 def test_set_and_remove_multiple_attributes(item):
     item.update(A.my_str.set("new_value"), A.my_int.set(500), A.my_decimal.remove(), A.my_dict.remove())
     assert item.my_str == "new_value"
@@ -265,6 +270,9 @@ def condition_tester(request):
     return tester
 
 
+nested_str = A("my_nested_model.sample_field")
+
+
 @pytest.mark.parametrize(
     "success,failure",
     [
@@ -285,10 +293,13 @@ def condition_tester(request):
             A.my_nested_data == [{"a": [{"foo": "bar"}], "b": "test"}, "some_string"],
             A.my_nested_data == ["not", {"this": "data"}],
         ),
+        (nested_str == "hello", nested_str == "non-matching"),
         # inequality
         (A.my_str != "non-matching", A.my_str != "foo"),
         (A.my_str.ne("non-matching"), A.my_str.ne("foo")),
         (A.my_int != 5000, A.my_int != 5),
+        (nested_str != "non-matching", nested_str != "hello"),
+        (nested_str.ne("non-matching"), nested_str.ne("hello")),
         # </<=/>/>=
         (A.my_int < 10, A.my_int < 0),
         (A.my_int <= 5, A.my_int <= 4),
@@ -297,17 +308,30 @@ def condition_tester(request):
         (A.my_int > 0, A.my_int > 10),
         (A.my_int >= 5, A.my_int >= 6),
         (A.my_str > "fff", A.my_str > "zzz"),
+        (nested_str > "he", nested_str > "hello"),
+        (nested_str >= "hello", nested_str >= "hello2"),
+        (nested_str < "hello2", nested_str < "hello"),
+        (nested_str <= "hello", nested_str <= "he"),
         # string operators
         (A.my_str.begins_with("f"), A.my_str.begins_with("z")),
         (A.my_str.between("f", "food"), A.my_str.between("z", "zebra")),
         (A.my_str.is_in({"foo", "bar", "baz"}), A.my_str.is_in({"d", "e"})),
         (A.my_str.contains("fo"), A.my_str.contains("blah")),
         (A.my_str_set.contains("a"), A.my_str_set.contains(A.my_str)),
+        (nested_str.begins_with("h"), nested_str.begins_with("z")),
+        (nested_str.between("h", "hello2"), nested_str.between("h", "he")),
+        (nested_str.is_in({"a", "hello", "b"}), nested_str.is_in({"a", "b"})),
+        (nested_str.contains("hel"), nested_str.contains("foo")),
+        (A.my_str_set.contains("a"), A.my_str_set.contains(A.my_str)),
         # attribute_type/size/existence functions
         (A.my_str.attribute_type("S"), A.my_str.attribute_type("N")),
         (A.my_str.size < 15, A.my_str.size > 20),
         (A.my_str.size == 3, ~(A.my_str.size == 3)),
         (A.my_str.exists(), A.my_str.not_exists()),
+        (nested_str.attribute_type("S"), nested_str.attribute_type("N")),
+        (nested_str.size < 15, nested_str.size > 20),
+        (nested_str.size == 5, ~(nested_str.size == 5)),
+        (nested_str.exists(), nested_str.not_exists()),
         # logical operators
         (~(A.my_str == "bar"), ~(A.my_str == "foo")),
         ((A.my_str == "foo") | (A.my_str == "bar"), (A.my_str == "foo") & (A.my_int == 10)),
