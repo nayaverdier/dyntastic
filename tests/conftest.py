@@ -51,6 +51,13 @@ class MyRangeObject(MyObject):
     timestamp: datetime = Field(default_factory=datetime.now)
 
 
+class MyAliasObject(Dyntastic):
+    __table_name__ = "my_alias_object"
+    __hash_key__ = "id/alias"
+
+    id: str = Field(..., alias="id/alias")
+
+
 def _create_item(DyntasticModel, **kwargs):
     DyntasticModel.create_table()
     data = {
@@ -95,6 +102,14 @@ def range_item():
 @pytest.fixture(params=params)
 def item(request):
     instance = _create_item(request.param[0])
+    yield instance
+    instance._clear_boto3_state()
+
+
+@pytest.fixture
+def alias_item():
+    MyAliasObject.create_table()
+    instance = MyAliasObject(id="foo")
     yield instance
     instance._clear_boto3_state()
 

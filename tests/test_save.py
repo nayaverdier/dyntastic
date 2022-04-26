@@ -18,3 +18,12 @@ def test_save_different_id(item):
 
     item.refresh()
     assert item.id == "new_id"
+
+
+def test_save_aliased_item(alias_item):
+    alias_item.save()
+
+    assert alias_item.get(alias_item.id) is not None
+    raw_item = alias_item._dynamodb_table().get_item(Key={"id/alias": alias_item.id})["Item"]
+    assert raw_item is not None
+    assert type(alias_item)(**raw_item).id == alias_item.id

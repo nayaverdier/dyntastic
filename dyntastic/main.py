@@ -310,7 +310,7 @@ class Dyntastic(_TableMetadata, BaseModel):
 
     @classmethod
     def _dynamodb_type(cls, key: str) -> str:
-        python_type = cls.__fields__[key].type_
+        python_type = next(field.type_ for field in cls.__fields__.values() if field.alias == key)
         if python_type == bytes:
             return "B"
         elif python_type in (int, Decimal):
