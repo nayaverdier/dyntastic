@@ -1,4 +1,5 @@
 import pytest
+from pydantic import Field
 
 from dyntastic import Dyntastic
 
@@ -81,3 +82,14 @@ def test_range_dyntastic_instance():
 
     instance = MyObject(my_hash_key="example_key", my_range_key="some_range_key")
     assert instance.dict() == {"my_hash_key": "example_key", "my_range_key": "some_range_key"}
+
+
+def test_model_alias():
+    class MyAliasObject(Dyntastic):
+        __table_name__ = "my_alias_object"
+        __hash_key__ = "my/alias"
+
+        my_field: str = Field(..., alias="my/alias")
+
+    instance = MyAliasObject(my_field="test")
+    assert instance.dict(by_alias=True) == {"my/alias": "test"}

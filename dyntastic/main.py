@@ -404,6 +404,9 @@ class Dyntastic(_TableMetadata, BaseModel):
 
         return super().__getattribute__(attr)
 
+    class Config:
+        allow_population_by_field_name = True
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
@@ -415,8 +418,16 @@ class Dyntastic(_TableMetadata, BaseModel):
         if not hasattr(cls, "__hash_key__"):
             raise ValueError("Dyntastic table must have __hash_key__ defined")
 
-        if cls.__hash_key__ not in cls.__fields__:
+        if not _has_alias(cls, cls.__hash_key__):
             raise ValueError(f"Dyntastic __hash_key__ is not defined as a field: '{cls.__hash_key__}'")
 
-        if cls.__range_key__ and cls.__range_key__ not in cls.__fields__:
+        if cls.__range_key__ and not _has_alias(cls, cls.__range_key__):
             raise ValueError(f"Dyntastic __range_key__ is not defined as a field: '{cls.__range_key__}'")
+
+
+def _has_alias(model: Type[BaseModel], name: str) -> bool:
+    for field in model.__fields__.values():
+        if field.alias == name:
+            return True
+
+    return False
