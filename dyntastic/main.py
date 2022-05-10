@@ -56,6 +56,14 @@ class Dyntastic(_TableMetadata, BaseModel):
     _dyntastic_unrefreshed: bool = PrivateAttr(default=False)
 
     @classmethod
+    def get_model(cls, item: dict):
+        return cls
+
+    @classmethod
+    def _dyntastic_load_model(cls, item: dict):
+        return cls.get_model(item)(**item)
+
+    @classmethod
     def get(cls: Type[_T], hash_key, range_key=None, *, consistent_read: bool = False) -> _T:
         if cls.__range_key__ and range_key is None:
             raise ValueError(f"Must provide range_key to {cls.__name__}.get()")
@@ -71,7 +79,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         response = cls._dynamodb_table().get_item(Key=serialized_key, ConsistentRead=consistent_read)  # type: ignore
         data = response.get("Item")
         if data:
-            return cls(**data)
+            return cls._dyntastic_load_model(data)
         else:
             raise DoesNotExist
 
@@ -147,7 +155,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         )
 
         raw_items = response.get("Items")
-        items = [cls(**item) for item in raw_items]
+        items = [cls._dyntastic_load_model(item) for item in raw_items]
         last_evaluated_key = response.get("LastEvaluatedKey")
 
         return ResultPage(items, last_evaluated_key)
@@ -197,7 +205,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         )
 
         raw_items = response.get("Items")
-        items = [cls(**item) for item in raw_items]
+        items = [cls._dyntastic_load_model(item) for item in raw_items]
         last_evaluated_key = response.get("LastEvaluatedKey")
 
         return ResultPage(items, last_evaluated_key)
@@ -310,10 +318,12 @@ class Dyntastic(_TableMetadata, BaseModel):
 
     @classmethod
     def _dynamodb_type(cls, key: str) -> str:
-        python_type = next(field.type_ for field in cls.__fields__.values() if field.alias == key)
+        # Note: pragma nocover on the following line as coverage marks the ->exit branch as
+        # being missed (since we can always find a field matching the key passed in)
+        python_type = next(field.type_ for field in cls.__fields__.values() if field.alias == key)  # pragma: nocover
         if python_type == bytes:
             return "B"
-        elif python_type in (int, Decimal):
+        elif python_type in (int, Decimal, float):
             return "N"
         else:
             # TODO: how to properly differentiate between types like datetime

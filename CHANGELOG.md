@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0 TBD
+
+- Added support for multiple subclasses within one table (`get_model` function)
+
 ## 0.4.1 2022-04-26
 
 - Fixed serialization of dynamo types when using Pydantic aliases
