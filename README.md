@@ -211,3 +211,85 @@ To instead error in this situation, pass `require_condition=True`:
 ```python
 my_item.update(..., require_condition=True)
 ```
+
+### Batch Reads
+
+Multiple items can be read from a table at the same time using the `batch_get` function.
+
+Note that DynamoDB limits the number of items that can be read at one time to
+100 items or 16MB, whichever comes first.
+
+Note that if any of the provided keys are missing from dynamo, they will simply
+be excluded in the result set.
+
+```python
+MyModel.batch_get(["hash_key_1", "hash_key_2", "hash_key_3"])
+# => [MyModel(...), MyModel(...)]
+```
+
+For models with a range key defined:
+
+```python
+MyModel.batch_get([("hash_key_1", "range_key_1"), ("hash_key_2", "range_key_2")])
+# => [MyModel(...), MyModel(...)]
+```
+
+### Batch Writes
+
+Save and delete operations may also be performed in batches.
+
+Note that DynamoDB limits the number of items that can be written in a single
+batch to 25 items or 16MB, whichever comes first. Dyntastic will automatically
+batch in chunks of 25, or less if desired.
+
+```python
+with MyModel.batch_writer():
+    MyModel(id="0").delete()
+    MyModel(id="1").save()
+    MyModel(id="2").save()
+
+# all operations are performed once the `with` context is exited
+```
+
+To configure a smaller batch size, for example when each item is relatively large:
+
+```python
+with MyModel.batch_writer(batch_size=2):
+    MyModel(id="1").save()
+    MyModel(id="2").save()
+    # the previous two models are written immediately, since the batch size was reached
+    MyModel(id="3).save()
+
+# The final operation is performed here now that the `with` context has exited
+```
+
+### Create a DynamoDB Table
+
+This functionality is currently meant only for use in unit tests as it does not
+support configuring throughput.
+
+To create a table with no secondary indexes:
+
+```python
+MyModel.create_table()
+
+# Do not wait until the table creation is complete (subsequent operations
+# may error if they are performed before the table creation is finished)
+MyModel.create_table(wait=False)
+```
+
+To define global secondary indexes (creating local secondary indexes is not
+currently supported):
+
+```python
+# All of the following are equivalent
+index1 = "my_field"
+index1 = Index("my_field")
+index1 = Index("my_field", index_name="my_field-index")
+
+# Range keys are also supported
+index2 = Index("my_field", "my_second_field")
+index2 = Index("my_field", "my_second_field", index_name="my_field_my_second_field-index")
+
+MyModel.create_table(index1, index2)
+```

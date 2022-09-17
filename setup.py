@@ -2,11 +2,12 @@ from pathlib import Path
 
 from setuptools import find_packages, setup
 
-
 ROOT_DIRECTORY = Path(__file__).resolve().parent
 
 readme = (ROOT_DIRECTORY / "README.md").read_text()
-description = readme.splitlines()[2]
+description = next(
+    line for line in readme.splitlines() if line and not line.startswith("#") and not line.startswith("[")
+)
 changelog = (ROOT_DIRECTORY / "CHANGELOG.md").read_text()
 long_description = readme + "\n\n" + changelog
 
@@ -28,7 +29,7 @@ DEV_REQUIRES = [
 
 setup(
     name="dyntastic",
-    version="0.5.0",
+    version="0.6.0",
     description=description,
     long_description=long_description,
     long_description_content_type="text/markdown",

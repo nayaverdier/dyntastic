@@ -44,8 +44,12 @@ class MyObject(Dyntastic):
 
 
 # No hash key defined because this inherits from MyObject
+# This class also covers testing __table_name__ being a function instead of a string
 class MyRangeObject(MyObject):
-    __table_name__ = "my_range_object"
+    @classmethod
+    def __table_name__(cls):
+        return "my_range_object"
+
     __range_key__ = "timestamp"
 
     timestamp: datetime = Field(default_factory=datetime.now)

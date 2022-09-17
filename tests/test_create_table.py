@@ -24,7 +24,6 @@ class MyRegionObject(MyObject):
 
 def test_create_table_region():
     MyRegionObject._clear_boto3_state()
-    print("HI", MyRegionObject.__table_region__)
     assert MyRegionObject._dynamodb_resource().meta.client.meta.region_name == "us-east-2"
     assert MyRegionObject._dynamodb_client().meta.region_name == "us-east-2"
     MyRegionObject.create_table()

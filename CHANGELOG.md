@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.5.0 TBD
+## 0.6.0 2022-09-17
+
+- Added support for `__table_name__` being a `Callable[[], str]` to allow dynamic table name
+- Added support for batch reads and writes
+- Fixed `consistent_read` behavior for `safe_get` (previously was always set to `True`)
+
+## 0.5.0 2022-05-09
 
 - Added support for multiple subclasses within one table (`get_model` function)
 

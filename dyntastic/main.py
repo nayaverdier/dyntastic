@@ -1,6 +1,6 @@
 import time
 from decimal import Decimal
-from typing import Any, Dict, Generator, Generic, List, Optional, Type, TypeVar, Union
+from typing import Any, Callable, Dict, Generator, Generic, List, Optional, Tuple, Type, TypeVar, Union
 
 import boto3
 import importlib_metadata as _metadata
@@ -8,6 +8,7 @@ from boto3.dynamodb.conditions import ConditionBase
 from pydantic import BaseModel, PrivateAttr
 
 from .attr import Attr, _UpdateAction, serialize, translate_updates
+from .batch import BatchWriter, invoke_with_backoff
 from .exceptions import DoesNotExist
 
 __version__ = _metadata.version("dyntastic")
@@ -18,11 +19,13 @@ _T = TypeVar("_T", bound="Dyntastic")
 
 class _TableMetadata:
     # TODO: add __table_host__?
-    __table_name__: str
+    __table_name__: Union[str, Callable[[], str]]
     __table_region__: Optional[str] = None
 
     __hash_key__: str
     __range_key__: Optional[str] = None
+
+    _dyntastic_batch_writer: Optional[BatchWriter] = None
 
 
 class ResultPage(Generic[_T]):
@@ -57,6 +60,12 @@ class Dyntastic(_TableMetadata, BaseModel):
 
     @classmethod
     def get_model(cls, item: dict):
+        """Get a model instance from a DynamoDB item.
+
+        This method can be overridden to support a single-table design pattern
+        (i.e. multiple schemas shared in a single table).
+        """
+
         return cls
 
     @classmethod
@@ -86,9 +95,43 @@ class Dyntastic(_TableMetadata, BaseModel):
     @classmethod
     def safe_get(cls: Type[_T], hash_key, range_key=None, *, consistent_read: bool = False) -> Optional[_T]:
         try:
-            return cls.get(hash_key, range_key=range_key, consistent_read=True)
+            return cls.get(hash_key, range_key=range_key, consistent_read=consistent_read)
         except DoesNotExist:
             return None
+
+    @classmethod
+    def batch_get(
+        cls: Type[_T],
+        keys: Union[List[str], List[Tuple[str, str]]],
+        consistent_read: bool = False,
+    ) -> List[_T]:
+        if cls.__range_key__ and not all(isinstance(key, (list, tuple)) and len(key) == 2 for key in keys):
+            raise ValueError(f"Must provide (hash_key, range_key) tuples as `keys` to {cls.__name__}.batch_get()")
+        elif cls.__range_key__ is None and not all(isinstance(key, str) for key in keys):
+            raise ValueError(f"Must only provide strings as `keys` to {cls.__name__}.batch_get()")
+
+        serialized_keys = []
+        for key in keys:
+            if isinstance(key, str):
+                key_dict = {cls.__hash_key__: key}
+            else:
+                assert cls.__range_key__
+                key_dict = {cls.__hash_key__: key[0], cls.__range_key__: key[1]}
+
+            serialized_keys.append(serialize(key_dict))
+
+        responses = invoke_with_backoff(
+            cls._dynamodb_resource().batch_get_item,
+            {cls._resolve_table_name(): {"Keys": serialized_keys, "ConsistentRead": consistent_read}},
+            "UnprocessedKeys",
+        )
+
+        items: List[_T] = []
+        for response in responses:
+            raw_items = response["Responses"][cls._resolve_table_name()]
+            items.extend(cls._dyntastic_load_model(item) for item in raw_items)
+
+        return items
 
     @classmethod
     def query(
@@ -210,7 +253,7 @@ class Dyntastic(_TableMetadata, BaseModel):
 
         return ResultPage(items, last_evaluated_key)
 
-    def save(self, *, condition: ConditionBase = None) -> dict:
+    def save(self, *, condition: ConditionBase = None):
         data = self.dict(by_alias=True)
         dynamo_serialized = serialize(data)
         return self._dyntastic_call("put_item", Item=dynamo_serialized, ConditionExpression=condition)
@@ -257,6 +300,23 @@ class Dyntastic(_TableMetadata, BaseModel):
         # because we don't want nested objects to be converted to dictionaries as well.
         self.__dict__.update(dict(data._iter(to_dict=False, by_alias=False, exclude_unset=False)))
 
+    @classmethod
+    def batch_writer(cls, batch_size: int = 25):
+        return BatchWriter(cls, batch_size=batch_size)
+
+    @classmethod
+    def submit_batch_write(cls, batch: List[dict]):
+        if not batch:
+            return
+
+        responses = invoke_with_backoff(
+            cls._dynamodb_resource().batch_write_item,
+            {cls._resolve_table_name(): batch},
+            "UnprocessedItems",
+        )
+
+        return responses
+
     # Note: This cannot use @classmethod and @property together for python <3.9
     @classmethod
     def ConditionException(cls):
@@ -275,7 +335,6 @@ class Dyntastic(_TableMetadata, BaseModel):
             key_schema.append({"AttributeName": cls.__range_key__, "KeyType": "RANGE"})
 
         kwargs = {}
-        # TODO: support RANGE keys in secondary indexes
         if indexes:
             secondary_indexes = []
             for index in indexes:
@@ -304,7 +363,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         ]
 
         cls._dynamodb_resource().create_table(  # type: ignore
-            TableName=cls.__table_name__,
+            TableName=cls._resolve_table_name(),
             KeySchema=key_schema,
             AttributeDefinitions=attribute_definitions,
             ProvisionedThroughput=throughput,
@@ -315,6 +374,13 @@ class Dyntastic(_TableMetadata, BaseModel):
             cls._wait_until_exists()
 
     # Internal helpers
+
+    @classmethod
+    def _resolve_table_name(cls) -> str:
+        if callable(cls.__table_name__):
+            return cls.__table_name__()
+        else:
+            return cls.__table_name__
 
     @classmethod
     def _dynamodb_type(cls, key: str) -> str:
@@ -361,7 +427,7 @@ class Dyntastic(_TableMetadata, BaseModel):
     @classmethod
     def _dynamodb_table(cls):
         if cls._dynamodb_table_instance is None:
-            cls._dynamodb_table_instance = cls._dynamodb_resource().Table(cls.__table_name__)
+            cls._dynamodb_table_instance = cls._dynamodb_resource().Table(cls._resolve_table_name())
         return cls._dynamodb_table_instance
 
     @classmethod
@@ -377,7 +443,7 @@ class Dyntastic(_TableMetadata, BaseModel):
     def _wait_until_exists(cls):
         # wait a maximum of 15 * 2 = 30 seconds
         for _ in range(15):  # pragma: no cover
-            response = cls._dynamodb_client().describe_table(TableName=cls.__table_name__)
+            response = cls._dynamodb_client().describe_table(TableName=cls._resolve_table_name())
             if response["Table"].get("TableStatus") == "ACTIVE":  # pragma: no cover
                 break
 
@@ -393,7 +459,28 @@ class Dyntastic(_TableMetadata, BaseModel):
     def _dyntastic_call(cls, operation, **kwargs):
         method = getattr(cls._dynamodb_table(), operation)
         filtered_kwargs = {key: value for key, value in kwargs.items() if value is not None}
-        return method(**filtered_kwargs)
+
+        # Logic to support writing in batches without changing the API at all
+        if cls._dyntastic_batch_writer is not None and operation not in ["query", "scan"]:
+            if operation == "delete_item":
+                if filtered_kwargs.keys() != {"Key"}:
+                    raise ValueError(
+                        f"Cannot provide additional arguments to {cls.__name__}.delete() when using batch_writer()"
+                    )
+
+                batch_item = {"DeleteRequest": filtered_kwargs}
+            elif operation == "put_item":
+                if filtered_kwargs.keys() != {"Item"}:
+                    raise ValueError(
+                        f"Cannot provide additional arguments to {cls.__name__}.save() when using batch_writer()"
+                    )
+                batch_item = {"PutRequest": filtered_kwargs}
+            else:  # pragma: nocover
+                raise ValueError(f"Operation {operation} not supported with {cls.__name__}.batch_writer()")
+
+            cls._dyntastic_batch_writer.add(batch_item)
+        else:
+            return method(**filtered_kwargs)
 
     def ignore_unrefreshed(self):
         self._dyntastic_unrefreshed = False
