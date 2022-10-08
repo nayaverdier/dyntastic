@@ -15,7 +15,12 @@ install:
 .PHONY: install-dev
 install-dev:
 	$(install-pip)
-	pip install -e ".[dev]"
+	pip install -e ".[dev]" $(ARGS)
+
+.PHONY: install-deploy
+install-deploy:
+	$(install-pip)
+	pip install -e ".[deploy]"
 
 .PHONY: format
 format:

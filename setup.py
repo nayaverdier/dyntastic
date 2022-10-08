@@ -24,12 +24,11 @@ DEV_REQUIRES = [
     "pytest==7.1.2",
     "pytest-cov==3.0.0",
     "pytest-mock==3.7.0",
-    "twine==4.0.0",
 ]
 
 setup(
     name="dyntastic",
-    version="0.6.0",
+    version="0.7.0a1",
     description=description,
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -42,13 +41,14 @@ setup(
     license="MIT",
     packages=find_packages(exclude=("tests",)),
     install_requires=[
-        "boto3~=1.6",
-        "pydantic~=1.8",
-        "importlib-metadata~=4.2",
+        "boto3>=1.10.0",
+        "pydantic>=1.7.1",
+        "importlib-metadata>=1.0.0; python_version < '3.8'",
     ],
     python_requires=">=3.7",
     extras_require={
         "dev": DEV_REQUIRES,
+        "deploy": ["twine==4.0.0"],
     },
     include_package_data=True,
 )

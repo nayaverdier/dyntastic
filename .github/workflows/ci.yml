@@ -4,12 +4,14 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: Test Python ${{ matrix.python-version }}
+    name: "Test Python ${{ matrix.python-version }} (${{ (matrix.pin-versions == '' && 'Latest Dependencies') || 'Compatibility Check' }})"
     timeout-minutes: 3
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.7', '3.8', '3.9', '3.10']
+        pin-versions: ["", "boto3==1.10.0 pydantic==1.7.1 \\\"importlib_metadata==1.0.0; python_version<'3.8'\\\""]
+
     env:
       PYTHON: ${{ matrix.python-version }}
 
@@ -23,7 +25,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: install
-      run: make install-dev
+      run: 'make install-dev ARGS="${{ matrix.pin-versions }}"'
     - name: Lint
       run: make lint
     - name: test
@@ -51,7 +53,7 @@ jobs:
         python-version: 3.7
 
     - name: install
-      run: make install-dev
+      run: make install-deploy
 
     - name: build
       run: make build

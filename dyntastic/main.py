@@ -3,7 +3,14 @@ from decimal import Decimal
 from typing import Any, Callable, Dict, Generator, Generic, List, Optional, Tuple, Type, TypeVar, Union
 
 import boto3
-import importlib_metadata as _metadata
+
+try:
+    # Python 3.8+
+    import importlib.metadata as _metadata  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    # Python 3.7
+    import importlib_metadata as _metadata  # type: ignore
+
 from boto3.dynamodb.conditions import ConditionBase
 from pydantic import BaseModel, PrivateAttr
 

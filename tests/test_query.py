@@ -7,7 +7,9 @@ from dyntastic import A
 
 
 def test_zero_page_size_errors(populated_model):
-    with pytest.raises(botocore.exceptions.ParamValidationError, match="valid min value: 1"):
+    with pytest.raises(
+        botocore.exceptions.ParamValidationError, match="valid min value: 1|Invalid range for parameter Limit, value: 0"
+    ):
         list(populated_model.query("id1", per_page=0))
 
 

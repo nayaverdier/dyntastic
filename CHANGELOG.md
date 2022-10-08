@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.0a1 2022-10-08
+
+- Change dependency version pinning to be more flexible
+- Only require `importlib_metadata` for python3.7 and earlier
+
 ## 0.6.0 2022-09-17
 
 - Added support for `__table_name__` being a `Callable[[], str]` to allow dynamic table name
