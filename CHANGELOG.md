@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0 2022-10-11
+
+- No changes since 0.7.0a1
+
 ## 0.7.0a1 2022-10-08
 
 - Change dependency version pinning to be more flexible
