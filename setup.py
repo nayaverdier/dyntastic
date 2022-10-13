@@ -28,7 +28,7 @@ DEV_REQUIRES = [
 
 setup(
     name="dyntastic",
-    version="0.7.0",
+    version="0.8.0",
     description=description,
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -50,5 +50,6 @@ setup(
         "dev": DEV_REQUIRES,
         "deploy": ["twine==4.0.0"],
     },
+    package_data={"dyntastic": ["py.typed"]},
     include_package_data=True,
 )

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0 2022-10-12
+
+- Add `py.typed` marker to indicate this library ships with type hints
+
 ## 0.7.0 2022-10-11
 
 - No changes since 0.7.0a1
