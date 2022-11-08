@@ -112,18 +112,23 @@ class Dyntastic(_TableMetadata, BaseModel):
         keys: Union[List[str], List[Tuple[str, str]]],
         consistent_read: bool = False,
     ) -> List[_T]:
+        hash_key_type = cls.__fields__[cls.__hash_key__].type_
+
         if cls.__range_key__ and not all(isinstance(key, (list, tuple)) and len(key) == 2 for key in keys):
             raise ValueError(f"Must provide (hash_key, range_key) tuples as `keys` to {cls.__name__}.batch_get()")
-        elif cls.__range_key__ is None and not all(isinstance(key, str) for key in keys):
-            raise ValueError(f"Must only provide strings as `keys` to {cls.__name__}.batch_get()")
+
+        if cls.__range_key__ is None and not all(isinstance(key, hash_key_type) for key in keys):
+            raise ValueError(
+                f"Must only provide {hash_key_type.__name__} types as `keys` to {cls.__name__}.batch_get()"
+            )
 
         serialized_keys = []
         for key in keys:
-            if isinstance(key, str):
-                key_dict = {cls.__hash_key__: key}
-            else:
-                assert cls.__range_key__
+            if cls.__range_key__:
                 key_dict = {cls.__hash_key__: key[0], cls.__range_key__: key[1]}
+            else:
+                assert isinstance(key, hash_key_type)
+                key_dict = {cls.__hash_key__: key}
 
             serialized_keys.append(serialize(key_dict))
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1 2022-11-08
+
+- Fixed `batch_read` to support non-string hash keys
+
 ## 0.8.0 2022-10-12
 
 - Add `py.typed` marker to indicate this library ships with type hints

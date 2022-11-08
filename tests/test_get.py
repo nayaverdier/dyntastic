@@ -2,13 +2,19 @@ import pytest
 
 from dyntastic import DoesNotExist
 
-from .conftest import MyObject, MyRangeObject
+from .conftest import MyIntObject, MyObject, MyRangeObject
 
 
 def test_get_by_hash_key(hash_item):
     retrieved = MyObject.get(hash_item.id)
     safe_retrieved = MyObject.safe_get(hash_item.id)
     assert retrieved == safe_retrieved == hash_item
+
+
+def test_get_by_int_hash_key(populated_int_model):
+    retrieved = MyIntObject.get(1)
+    safe_retrieved = MyIntObject.safe_get(1)
+    assert retrieved == safe_retrieved == MyIntObject(id=1)
 
 
 def test_get_with_range_key(range_item):
@@ -42,3 +48,10 @@ def test_get_nonexistent(hash_item, range_item):
 
     with pytest.raises(ValueError, match="Must provide range_key to MyRangeObject.get\\(\\)"):
         MyRangeObject.safe_get("nonexistent")
+
+
+def test_get_nonexistent_int_hash_key(populated_int_model):
+    with pytest.raises(DoesNotExist):
+        MyIntObject.get(100)
+
+    assert MyIntObject.safe_get(100) is None
