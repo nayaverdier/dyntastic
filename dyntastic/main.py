@@ -6,7 +6,7 @@ import boto3
 
 try:
     # Python 3.8+
-    import importlib.metadata as _metadata  # type: ignore
+    import importlib.metadata as _metadata
 except ModuleNotFoundError:  # pragma: no cover
     # Python 3.7
     import importlib_metadata as _metadata  # type: ignore
@@ -49,7 +49,7 @@ class ResultPage(Generic[_T]):
 
 
 class Index:
-    def __init__(self, hash_key: str, range_key: str = None, index_name: str = None):
+    def __init__(self, hash_key: str, range_key: Optional[str] = None, index_name: Optional[str] = None):
         self.hash_key = hash_key
         self.range_key = range_key
 
@@ -152,10 +152,10 @@ class Dyntastic(_TableMetadata, BaseModel):
         *,
         consistent_read: bool = False,
         range_key_condition=None,
-        filter_condition: ConditionBase = None,
-        index: str = None,
-        per_page: int = None,
-        last_evaluated_key: dict = None,
+        filter_condition: Optional[ConditionBase] = None,
+        index: Optional[str] = None,
+        per_page: Optional[int] = None,
+        last_evaluated_key: Optional[dict] = None,
     ) -> Generator[_T, None, None]:
         while True:
             result = cls.query_page(
@@ -172,7 +172,7 @@ class Dyntastic(_TableMetadata, BaseModel):
             yield from result.items
 
             if not result.has_more or not result.items:
-                break
+                break  # pragma: no cover (in python 3.8/3.9, this appeared as missing coverage)
 
     @classmethod
     def query_page(
@@ -180,11 +180,11 @@ class Dyntastic(_TableMetadata, BaseModel):
         hash_key: Union[str, ConditionBase],
         *,
         consistent_read: bool = False,
-        range_key_condition: ConditionBase = None,
-        filter_condition: ConditionBase = None,
-        index: str = None,
-        per_page: int = None,
-        last_evaluated_key: dict = None,
+        range_key_condition: Optional[ConditionBase] = None,
+        filter_condition: Optional[ConditionBase] = None,
+        index: Optional[str] = None,
+        per_page: Optional[int] = None,
+        last_evaluated_key: Optional[dict] = None,
     ) -> ResultPage[_T]:
         if index and consistent_read:
             raise ValueError("Cannot perform a consistent read against a secondary index")
@@ -218,12 +218,12 @@ class Dyntastic(_TableMetadata, BaseModel):
     @classmethod
     def scan(
         cls: Type[_T],
-        filter_condition: ConditionBase = None,
+        filter_condition: Optional[ConditionBase] = None,
         *,
         consistent_read: bool = False,
-        index: str = None,
-        per_page: int = None,
-        last_evaluated_key: dict = None,
+        index: Optional[str] = None,
+        per_page: Optional[int] = None,
+        last_evaluated_key: Optional[dict] = None,
     ):
         while True:
             result = cls.scan_page(
@@ -243,12 +243,12 @@ class Dyntastic(_TableMetadata, BaseModel):
     @classmethod
     def scan_page(
         cls: Type[_T],
-        filter_condition: ConditionBase = None,
+        filter_condition: Optional[ConditionBase] = None,
         *,
         consistent_read: bool = False,
-        index: str = None,
-        per_page: int = None,
-        last_evaluated_key: dict = None,
+        index: Optional[str] = None,
+        per_page: Optional[int] = None,
+        last_evaluated_key: Optional[dict] = None,
     ) -> ResultPage[_T]:
         response = cls._dyntastic_call(
             "scan",
@@ -265,19 +265,19 @@ class Dyntastic(_TableMetadata, BaseModel):
 
         return ResultPage(items, last_evaluated_key)
 
-    def save(self, *, condition: ConditionBase = None):
+    def save(self, *, condition: Optional[ConditionBase] = None):
         data = self.dict(by_alias=True)
         dynamo_serialized = serialize(data)
         return self._dyntastic_call("put_item", Item=dynamo_serialized, ConditionExpression=condition)
 
-    def delete(self, *, condition: ConditionBase = None):
+    def delete(self, *, condition: Optional[ConditionBase] = None):
         return self._dyntastic_call("delete_item", Key=self._dyntastic_key_dict, ConditionExpression=condition)
 
     # TODO: Support ReturnValues
     def update(
         self,
         *actions: _UpdateAction,
-        condition: ConditionBase = None,
+        condition: Optional[ConditionBase] = None,
         require_condition: bool = False,
         refresh: bool = True,
     ):
@@ -429,27 +429,29 @@ class Dyntastic(_TableMetadata, BaseModel):
 
     @classmethod
     def _dynamodb_resource(cls):
-        if cls._dynamodb_resource_instance is None:
-            kwargs = {}
+        if cls._dynamodb_resource_instance is None:  # type: ignore
             if cls.__table_region__:
-                kwargs["region_name"] = cls.__table_region__
-            cls._dynamodb_resource_instance = boto3.resource("dynamodb", **kwargs)
-        return cls._dynamodb_resource_instance
+                resource = boto3.resource("dynamodb", region_name=cls.__table_region__)
+            else:
+                resource = boto3.resource("dynamodb")
+            cls._dynamodb_resource_instance = resource  # type: ignore
+        return cls._dynamodb_resource_instance  # type: ignore
 
     @classmethod
     def _dynamodb_table(cls):
-        if cls._dynamodb_table_instance is None:
-            cls._dynamodb_table_instance = cls._dynamodb_resource().Table(cls._resolve_table_name())
-        return cls._dynamodb_table_instance
+        if cls._dynamodb_table_instance is None:  # type: ignore
+            cls._dynamodb_table_instance = cls._dynamodb_resource().Table(cls._resolve_table_name())  # type: ignore
+        return cls._dynamodb_table_instance  # type: ignore
 
     @classmethod
     def _dynamodb_client(cls):
-        if cls._dynamodb_client_instance is None:
-            kwargs = {}
+        if cls._dynamodb_client_instance is None:  # type: ignore
             if cls.__table_region__:
-                kwargs["region_name"] = cls.__table_region__
-            cls._dynamodb_client_instance = boto3.client("dynamodb", **kwargs)
-        return cls._dynamodb_client_instance
+                client = boto3.client("dynamodb", region_name=cls.__table_region__)
+            else:
+                client = boto3.client("dynamodb")
+            cls._dynamodb_client_instance = client  # type: ignore
+        return cls._dynamodb_client_instance  # type: ignore
 
     @classmethod
     def _wait_until_exists(cls):
@@ -463,9 +465,9 @@ class Dyntastic(_TableMetadata, BaseModel):
 
     @classmethod
     def _clear_boto3_state(cls):
-        cls._dynamodb_table_instance = None
-        cls._dynamodb_resource_instance = None
-        cls._dynamodb_client_instance = None
+        cls._dynamodb_table_instance = None  # type: ignore
+        cls._dynamodb_resource_instance = None  # type: ignore
+        cls._dynamodb_client_instance = None  # type: ignore
 
     @classmethod
     def _dyntastic_call(cls, operation, **kwargs):

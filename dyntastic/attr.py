@@ -1,7 +1,7 @@
 import json
 from collections import defaultdict
 from decimal import Decimal
-from typing import Union
+from typing import Optional, Union
 
 from boto3.dynamodb.conditions import Attr as _DynamoAttr
 from boto3.dynamodb.conditions import Key as _DynamoKey
@@ -182,7 +182,7 @@ class _Minus(_Operator):
 class _ActionRemove(_UpdateAction):
     update_action = "REMOVE"
 
-    def __init__(self, path, index: int = None):
+    def __init__(self, path, index: Optional[int] = None):
         # This uses `type(...) is not ...` instead of `isinstance` to
         # ensure that subtypes of int which might have a different
         # __str__ method cannot allow injection
@@ -325,7 +325,7 @@ class Attr(_BaseAttr):
     def append(self, value):
         return self.set(self.list_append(value))
 
-    def remove(self, index: int = None):
+    def remove(self, index: Optional[int] = None):
         return _ActionRemove(self, index)
 
     def add(self, value):

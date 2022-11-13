@@ -3,7 +3,7 @@
 black = black dyntastic tests
 flake8 = flake8 dyntastic tests
 isort = isort dyntastic tests
-mypy = mypy dyntastic
+mypy = mypy dyntastic --ignore-missing-imports --scripts-are-modules --check-untyped-defs --no-implicit-optional
 install-pip = python -m pip install -U setuptools pip wheel
 test = pytest --cov=dyntastic --cov-branch --cov-report term-missing tests/
 

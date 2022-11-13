@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.2 2022-11-12
+
+- Make mypy linting more strict
+
 ## 0.8.1 2022-11-08
 
 - Fixed `batch_read` to support non-string hash keys
