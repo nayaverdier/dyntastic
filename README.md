@@ -139,6 +139,16 @@ Event.query(A.my_other_field == 12345, index="my_other_field-index")
 # note: Must provide a condition expression rather than just the value
 Event.query(123545, index="my_other_field-index")  # errors!
 
+# query an index with an optional filter expression
+filter_expression = None
+if filter_value:
+    filter_expression = A('filter_field').eq(filter_value)
+Event.query(
+    A.my_other_field == 12345, 
+    index="my_other_field-index",
+    filter_expression=filter_expression
+)
+
 # consistent read
 Event.query("some_event_id", consistent_read=True)
 ```
