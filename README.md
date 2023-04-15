@@ -69,6 +69,10 @@ p.json()
 
 ```
 
+To explicitly define an AWS region or DynamoDB endpoint url (for using a local
+dynamodb docker instance, for example), set `__table_region__` or
+`__table_host__`
+
 ### Inserting into DynamoDB
 
 Using the `Product` example from above, simply:

@@ -93,3 +93,18 @@ def test_model_alias():
 
     instance = MyAliasObject(my_field="test")
     assert instance.dict(by_alias=True) == {"my/alias": "test"}
+
+
+def test_table_host():
+    class MyObject(Dyntastic):
+        __table_name__ = "my_object"
+        __hash_key__ = "my_hash_key"
+        __table_host__ = "http://localhost:8000"
+
+        my_hash_key: str
+
+    assert MyObject.__table_host__ == "http://localhost:8000"
+    client = MyObject._dynamodb_client()
+    resource = MyObject._dynamodb_resource()
+    assert client.meta.endpoint_url == "http://localhost:8000"
+    assert resource.meta.client.meta.endpoint_url == "http://localhost:8000"

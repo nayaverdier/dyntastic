@@ -28,6 +28,7 @@ class _TableMetadata:
     # TODO: add __table_host__?
     __table_name__: Union[str, Callable[[], str]]
     __table_region__: Optional[str] = None
+    __table_host__: Optional[str] = None
 
     __hash_key__: str
     __range_key__: Optional[str] = None
@@ -428,13 +429,22 @@ class Dyntastic(_TableMetadata, BaseModel):
         return serialize(key)
 
     @classmethod
+    def _dynamodb_boto3_kwargs(cls):
+        kwargs = {}
+
+        if cls.__table_region__:
+            kwargs["region_name"] = cls.__table_region__
+
+        if cls.__table_host__:
+            kwargs["endpoint_url"] = cls.__table_host__
+
+        return kwargs
+
+    @classmethod
     def _dynamodb_resource(cls):
         if cls._dynamodb_resource_instance is None:  # type: ignore
-            if cls.__table_region__:
-                resource = boto3.resource("dynamodb", region_name=cls.__table_region__)
-            else:
-                resource = boto3.resource("dynamodb")
-            cls._dynamodb_resource_instance = resource  # type: ignore
+            kwargs = cls._dynamodb_boto3_kwargs()
+            cls._dynamodb_resource_instance = boto3.resource("dynamodb", **kwargs)  # type: ignore
         return cls._dynamodb_resource_instance  # type: ignore
 
     @classmethod
@@ -446,11 +456,8 @@ class Dyntastic(_TableMetadata, BaseModel):
     @classmethod
     def _dynamodb_client(cls):
         if cls._dynamodb_client_instance is None:  # type: ignore
-            if cls.__table_region__:
-                client = boto3.client("dynamodb", region_name=cls.__table_region__)
-            else:
-                client = boto3.client("dynamodb")
-            cls._dynamodb_client_instance = client  # type: ignore
+            kwargs = cls._dynamodb_boto3_kwargs()
+            cls._dynamodb_client_instance = boto3.client("dynamodb", **kwargs)  # type: ignore
         return cls._dynamodb_client_instance  # type: ignore
 
     @classmethod

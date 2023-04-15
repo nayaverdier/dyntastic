@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.0 2023-04-15
+
+- Add support for `__table_host__` for local testing
+
 ## 0.8.2 2022-11-12
 
 - Make mypy linting more strict
