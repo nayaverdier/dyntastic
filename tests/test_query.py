@@ -1,4 +1,3 @@
-import operator
 from datetime import datetime
 
 import botocore
@@ -149,9 +148,12 @@ def test_query_scan_index_forward(populated_range_model, scan_index_forward):
         )
     )
 
-    cmp = operator.gt
-    if scan_index_forward is True:
-        cmp = operator.lt
-
     assert len(results) == 2
-    assert cmp(results[0].timestamp, results[1].timestamp)
+
+    timestamp1 = results[0].timestamp
+    timestamp2 = results[1].timestamp
+
+    if scan_index_forward:
+        assert timestamp1 < timestamp2
+    else:
+        assert timestamp2 < timestamp1
