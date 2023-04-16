@@ -1,3 +1,4 @@
+import operator
 from datetime import datetime
 
 import botocore
@@ -138,3 +139,19 @@ def test_query_by_page(populated_range_model):
     assert len(second_page.items) == 1
     assert second_page.last_evaluated_key is None
     assert not second_page.has_more
+
+
+@pytest.mark.parametrize("scan_index_forward", [True, False])
+def test_query_scan_index_forward(populated_range_model, scan_index_forward):
+    results = list(
+        populated_range_model.query(
+            "id1", range_key_condition=A.timestamp.begins_with("2022"), scan_index_forward=scan_index_forward
+        )
+    )
+
+    cmp = operator.gt
+    if scan_index_forward is True:
+        cmp = operator.lt
+
+    assert len(results) == 2
+    assert cmp(results[0].timestamp, results[1].timestamp)

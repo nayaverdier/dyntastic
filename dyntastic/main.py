@@ -25,7 +25,6 @@ _T = TypeVar("_T", bound="Dyntastic")
 
 
 class _TableMetadata:
-    # TODO: add __table_host__?
     __table_name__: Union[str, Callable[[], str]]
     __table_region__: Optional[str] = None
     __table_host__: Optional[str] = None
@@ -157,6 +156,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         index: Optional[str] = None,
         per_page: Optional[int] = None,
         last_evaluated_key: Optional[dict] = None,
+        scan_index_forward: bool = True,
     ) -> Generator[_T, None, None]:
         while True:
             result = cls.query_page(
@@ -167,6 +167,7 @@ class Dyntastic(_TableMetadata, BaseModel):
                 index=index,
                 per_page=per_page,
                 last_evaluated_key=last_evaluated_key,
+                scan_index_forward=scan_index_forward,
             )
 
             last_evaluated_key = result.last_evaluated_key
@@ -186,6 +187,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         index: Optional[str] = None,
         per_page: Optional[int] = None,
         last_evaluated_key: Optional[dict] = None,
+        scan_index_forward: bool = True,
     ) -> ResultPage[_T]:
         if index and consistent_read:
             raise ValueError("Cannot perform a consistent read against a secondary index")
@@ -208,6 +210,7 @@ class Dyntastic(_TableMetadata, BaseModel):
             ExclusiveStartKey=last_evaluated_key,
             KeyConditionExpression=key_condition,
             FilterExpression=filter_condition,
+            ScanIndexForward=scan_index_forward,
         )
 
         raw_items = response.get("Items")
