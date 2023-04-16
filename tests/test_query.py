@@ -138,3 +138,22 @@ def test_query_by_page(populated_range_model):
     assert len(second_page.items) == 1
     assert second_page.last_evaluated_key is None
     assert not second_page.has_more
+
+
+@pytest.mark.parametrize("scan_index_forward", [True, False])
+def test_query_scan_index_forward(populated_range_model, scan_index_forward):
+    results = list(
+        populated_range_model.query(
+            "id1", range_key_condition=A.timestamp.begins_with("2022"), scan_index_forward=scan_index_forward
+        )
+    )
+
+    assert len(results) == 2
+
+    timestamp1 = results[0].timestamp
+    timestamp2 = results[1].timestamp
+
+    if scan_index_forward:
+        assert timestamp1 < timestamp2
+    else:
+        assert timestamp2 < timestamp1

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.0 2023-04-16
+
+- Add support for `scan_index_forward` for specifying ascending (True) or descending (False) traversal of the index.
+
 ## 0.9.0 2023-04-15
 
 - Add support for `__table_host__` for local testing
