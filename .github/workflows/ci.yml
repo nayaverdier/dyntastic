@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   test:
     name: "Test Python ${{ matrix.python-version }} (${{ (matrix.pin-versions == '' && 'Latest Dependencies') || 'Compatibility Check' }})"
-    timeout-minutes: 3
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
