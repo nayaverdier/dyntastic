@@ -165,6 +165,31 @@ def test_transaction_condition_errors_outside_of_transaction(Table: Type[_Table]
         Table(hash_key="foo").transaction_condition(A.hash_key.exists())
 
 
+def test_update_warns_on_refresh(Table: Type[_Table]):
+    item = Table(hash_key="foo")
+    item.save()
+
+    with transaction():
+        with pytest.warns(UserWarning, match=re.escape("Cannot refresh model in transaction, skipping refresh")):
+            item.update(A.data.set("bar"), refresh=True)
+
+    assert _transaction_writer_var.get() is None
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Dyntastic instance was not refreshed after update. "
+            "Call refresh(), or use ignore_unrefreshed() to ignore safety checks"
+        ),
+    ):
+        item.data
+
+    items = list(Table.scan())
+    assert len(items) == 1
+    assert items[0].hash_key == "foo"
+    assert items[0].data == "bar"
+
+
 @pytest.mark.parametrize("condition", [None, A.hash_key.not_exists()])
 @pytest.mark.parametrize("condition_check", [None, A.hash_key.exists()])
 def test_save_single_table(Table: Type[_Table], condition, condition_check):
@@ -268,10 +293,10 @@ def test_save_multiple_tables_failing_condition_check(Table: Type[_Table], Table
 @pytest.mark.parametrize("condition", [None, A.hash_key.exists()])
 @pytest.mark.parametrize("condition_check", [None, A.hash_key.not_exists()])
 def test_update_single_table(Table: Type[_Table], condition, condition_check):
-    item = Table(hash_key="foo")
-    item.save()
+    Table(hash_key="foo").save()
 
     with transaction():
+        item = Table.get("foo")
         item.update(A.data.set("bar"), condition=condition, refresh=False)
         if condition_check:
             Table(hash_key="foo2").transaction_condition(condition_check)
@@ -285,14 +310,14 @@ def test_update_single_table(Table: Type[_Table], condition, condition_check):
 
 
 def test_update_single_table_failing_condition(Table: Type[_Table]):
-    item = Table(hash_key="foo")
-    item.save()
+    Table(hash_key="foo").save()
 
     with pytest.raises(
         botocore.exceptions.ClientError,
         match=SINGLE_CONDITION_FAILED_ERROR,
     ):
         with transaction():
+            item = Table.get("foo")
             item.update(A.data.set("bar"), condition=A.hash_key.not_exists(), refresh=False)
 
     assert _transaction_writer_var.get() is None
@@ -304,14 +329,14 @@ def test_update_single_table_failing_condition(Table: Type[_Table]):
 
 
 def test_update_single_table_failing_condition_check(Table: Type[_Table]):
-    item = Table(hash_key="foo")
-    item.save()
+    Table(hash_key="foo").save()
 
     with pytest.raises(
         botocore.exceptions.ClientError,
         match=re.escape(TRANSACTION_CANCELED_BASE_ERROR + " [None, ConditionalCheckFailed]"),
     ):
         with transaction():
+            item = Table.get("foo")
             item.update(A.data.set("bar"), refresh=False)
             Table(hash_key="foo2").transaction_condition(A.hash_key.exists())
 
@@ -326,12 +351,12 @@ def test_update_single_table_failing_condition_check(Table: Type[_Table]):
 @pytest.mark.parametrize("condition", [None, A.hash_key.exists()])
 @pytest.mark.parametrize("condition_check", [None, A.hash_key.not_exists()])
 def test_update_multiple_tables(Table: Type[_Table], Table2: Type[_Table2], condition, condition_check):
-    item1 = Table(hash_key="foo")
-    item1.save()
-    item2 = Table2(hash_key="bar")
-    item2.save()
+    Table(hash_key="foo").save()
+    Table2(hash_key="bar").save()
 
     with transaction():
+        item1 = Table.get("foo")
+        item2 = Table2.get("bar")
         item1.update(A.data.set("data1"), condition=condition, refresh=False)
         item2.update(A.data.set("data2"), condition=condition, refresh=False)
         if condition_check:
@@ -351,17 +376,17 @@ def test_update_multiple_tables(Table: Type[_Table], Table2: Type[_Table2], cond
 
 
 def test_update_multiple_tables_failing_condition(Table: Type[_Table], Table2: Type[_Table2]):
-    item = Table(hash_key="foo")
-    item.save()
-    item2 = Table2(hash_key="bar")
-    item2.save()
+    Table(hash_key="foo").save()
+    Table2(hash_key="bar").save()
 
     with pytest.raises(
         botocore.exceptions.ClientError,
         match=re.escape(TRANSACTION_CANCELED_BASE_ERROR + " [ConditionalCheckFailed, ConditionalCheckFailed]"),
     ):
         with transaction():
-            item.update(A.data.set("bar"), condition=A.hash_key.not_exists(), refresh=False)
+            item1 = Table.get("foo")
+            item2 = Table2.get("bar")
+            item1.update(A.data.set("bar"), condition=A.hash_key.not_exists(), refresh=False)
             item2.update(A.data.set("bar"), condition=A.hash_key.not_exists(), refresh=False)
 
     assert _transaction_writer_var.get() is None
@@ -378,17 +403,17 @@ def test_update_multiple_tables_failing_condition(Table: Type[_Table], Table2: T
 
 
 def test_update_multiple_tables_failing_condition_check(Table: Type[_Table], Table2: Type[_Table2]):
-    item = Table(hash_key="foo")
-    item.save()
-    item2 = Table2(hash_key="bar")
-    item2.save()
+    Table(hash_key="foo").save()
+    Table2(hash_key="bar").save()
 
     with pytest.raises(
         botocore.exceptions.ClientError,
         match=re.escape(TRANSACTION_CANCELED_BASE_ERROR + " [None, None, ConditionalCheckFailed]"),
     ):
         with transaction():
-            item.update(A.data.set("bar"), refresh=False)
+            item1 = Table.get("foo")
+            item2 = Table2.get("bar")
+            item1.update(A.data.set("bar"), refresh=False)
             item2.update(A.data.set("bar2"), refresh=False)
             Table(hash_key="foo2").transaction_condition(A.hash_key.exists())
 
@@ -408,10 +433,10 @@ def test_update_multiple_tables_failing_condition_check(Table: Type[_Table], Tab
 @pytest.mark.parametrize("condition", [None, A.hash_key.exists()])
 @pytest.mark.parametrize("condition_check", [None, A.hash_key.not_exists()])
 def test_delete_single_table(Table: Type[_Table], condition, condition_check):
-    item = Table(hash_key="foo")
-    item.save()
+    Table(hash_key="foo").save()
 
     with transaction():
+        item = Table.get("foo")
         item.delete(condition=condition)
         if condition_check:
             Table(hash_key="foo2").transaction_condition(condition_check)
@@ -422,14 +447,14 @@ def test_delete_single_table(Table: Type[_Table], condition, condition_check):
 
 
 def test_delete_single_table_failing_condition(Table: Type[_Table]):
-    item = Table(hash_key="foo")
-    item.save()
+    Table(hash_key="foo").save()
 
     with pytest.raises(
         botocore.exceptions.ClientError,
         match=SINGLE_CONDITION_FAILED_ERROR,
     ):
         with transaction():
+            item = Table.get("foo")
             item.delete(condition=A.hash_key.not_exists())
 
     assert _transaction_writer_var.get() is None
@@ -441,14 +466,14 @@ def test_delete_single_table_failing_condition(Table: Type[_Table]):
 
 
 def test_delete_single_table_failing_condition_check(Table: Type[_Table]):
-    item = Table(hash_key="foo")
-    item.save()
+    Table(hash_key="foo").save()
 
     with pytest.raises(
         botocore.exceptions.ClientError,
         match=re.escape(TRANSACTION_CANCELED_BASE_ERROR + " [None, ConditionalCheckFailed]"),
     ):
         with transaction():
+            item = Table.get("foo")
             item.delete()
             Table(hash_key="foo2").transaction_condition(A.hash_key.exists())
 
@@ -463,12 +488,12 @@ def test_delete_single_table_failing_condition_check(Table: Type[_Table]):
 @pytest.mark.parametrize("condition", [None, A.hash_key.exists()])
 @pytest.mark.parametrize("condition_check", [None, A.hash_key.not_exists()])
 def test_delete_multiple_tables(Table: Type[_Table], Table2: Type[_Table2], condition, condition_check):
-    item1 = Table(hash_key="foo")
-    item1.save()
-    item2 = Table2(hash_key="bar")
-    item2.save()
+    Table(hash_key="foo").save()
+    Table2(hash_key="bar").save()
 
     with transaction():
+        item1 = Table.get("foo")
+        item2 = Table2.get("bar")
         item1.delete(condition=condition)
         item2.delete(condition=condition)
         if condition_check:
