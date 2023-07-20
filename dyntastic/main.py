@@ -1,4 +1,5 @@
 import time
+import warnings
 from decimal import Decimal
 from typing import Any, Callable, Dict, Generator, Generic, List, Optional, Tuple, Type, TypeVar, Union
 
@@ -9,14 +10,18 @@ try:
     import importlib.metadata as _metadata
 except ModuleNotFoundError:  # pragma: no cover
     # Python 3.7
-    import importlib_metadata as _metadata  # type: ignore
+    import importlib_metadata as _metadata  # type: ignore[no-redef, unused-ignore]
+
+from contextvars import ContextVar
 
 from boto3.dynamodb.conditions import ConditionBase
 from pydantic import BaseModel, PrivateAttr
 
-from .attr import Attr, _UpdateAction, serialize, translate_updates
+from . import attr, transact
+from .attr import Attr, _UpdateAction, translate_updates
 from .batch import BatchWriter, invoke_with_backoff
 from .exceptions import DoesNotExist
+from .transact import current_transaction_writer
 
 __version__ = _metadata.version("dyntastic")
 
@@ -32,7 +37,7 @@ class _TableMetadata:
     __hash_key__: str
     __range_key__: Optional[str] = None
 
-    _dyntastic_batch_writer: Optional[BatchWriter] = None
+    _dyntastic_batch_writer: ContextVar[Optional[BatchWriter]]
 
 
 class ResultPage(Generic[_T]):
@@ -90,9 +95,9 @@ class Dyntastic(_TableMetadata, BaseModel):
         if cls.__range_key__:
             key[cls.__range_key__] = range_key
 
-        serialized_key = serialize(key)
+        serialized_key = attr.serialize(key)
 
-        response = cls._dynamodb_table().get_item(Key=serialized_key, ConsistentRead=consistent_read)  # type: ignore
+        response = cls._dynamodb_table().get_item(Key=serialized_key, ConsistentRead=consistent_read)
         data = response.get("Item")
         if data:
             return cls._dyntastic_load_model(data)
@@ -130,7 +135,7 @@ class Dyntastic(_TableMetadata, BaseModel):
                 assert isinstance(key, hash_key_type)
                 key_dict = {cls.__hash_key__: key}
 
-            serialized_keys.append(serialize(key_dict))
+            serialized_keys.append(attr.serialize(key_dict))
 
         responses = invoke_with_backoff(
             cls._dynamodb_resource().batch_get_item,
@@ -271,7 +276,7 @@ class Dyntastic(_TableMetadata, BaseModel):
 
     def save(self, *, condition: Optional[ConditionBase] = None):
         data = self.dict(by_alias=True)
-        dynamo_serialized = serialize(data)
+        dynamo_serialized = attr.serialize(data)
         return self._dyntastic_call("put_item", Item=dynamo_serialized, ConditionExpression=condition)
 
     def delete(self, *, condition: Optional[ConditionBase] = None):
@@ -291,7 +296,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         # TODO: Run all of the expression value through pydantic validators on
         # the class, to support all of the various input type casting (do this
         # before serialize)
-        update_data: Dict[str, Any] = serialize(translate_updates(*actions))  # type: ignore
+        update_data: Dict[str, Any] = attr.serialize(translate_updates(*actions))
         try:
             response = self._dyntastic_call(
                 "update_item",
@@ -301,8 +306,11 @@ class Dyntastic(_TableMetadata, BaseModel):
             )
             self._dyntastic_unrefreshed = True
             if refresh:
-                # TODO: utilize ReturnValues in response when possible
-                self.refresh()
+                if current_transaction_writer() is not None:
+                    warnings.warn("Cannot refresh model in transaction, skipping refresh", stacklevel=2)
+                else:
+                    # TODO: utilize ReturnValues in response when possible
+                    self.refresh()
 
             return response
         except self.ConditionException():
@@ -312,9 +320,18 @@ class Dyntastic(_TableMetadata, BaseModel):
     def refresh(self):
         self._dyntastic_unrefreshed = False
         data = self.get(self._dyntastic_hash_key, self._dyntastic_range_key)
-        # Note: we have to use pydantic's private _iter function here instead of data.dict()
-        # because we don't want nested objects to be converted to dictionaries as well.
-        self.__dict__.update(dict(data._iter(to_dict=False, by_alias=False, exclude_unset=False)))
+        self.__dict__.update(data.__dict__)
+
+    def transaction_condition(self, condition: ConditionBase):
+        transaction_writer = current_transaction_writer()
+        if transaction_writer is None:
+            raise Exception(f"Cannot use {self.__class__.__name__}.transaction_condition() outside of a transaction")
+
+        item = self._construct_transact_item(
+            "transaction_condition",
+            {"Key": self._dyntastic_key_dict, "ConditionExpression": condition},
+        )
+        transaction_writer.add(self.__class__, item)
 
     @classmethod
     def batch_writer(cls, batch_size: int = 25):
@@ -378,7 +395,7 @@ class Dyntastic(_TableMetadata, BaseModel):
             {"AttributeName": attr, "AttributeType": cls._dynamodb_type(attr)} for attr in attributes
         ]
 
-        cls._dynamodb_resource().create_table(  # type: ignore
+        cls._dynamodb_resource().create_table(
             TableName=cls._resolve_table_name(),
             KeySchema=key_schema,
             AttributeDefinitions=attribute_definitions,
@@ -410,6 +427,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         else:
             # TODO: how to properly differentiate between types like datetime
             # which serialize to str, and other types that do not?
+            # TODO: use boto3.dynamodb.types.TypeSerializer._get_dynamodb_type() as a reference
             return "S"
 
     @property
@@ -429,7 +447,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         if self.__range_key__:
             key[self.__range_key__] = self._dyntastic_range_key
 
-        return serialize(key)
+        return attr.serialize(key)
 
     @classmethod
     def _dynamodb_boto3_kwargs(cls):
@@ -480,31 +498,80 @@ class Dyntastic(_TableMetadata, BaseModel):
         cls._dynamodb_client_instance = None  # type: ignore
 
     @classmethod
-    def _dyntastic_call(cls, operation, **kwargs):
+    def _construct_batch_item(cls, operation: str, filtered_kwargs: Dict[str, Any]):
+        if operation == "delete_item":
+            method = "delete"
+            key = "DeleteRequest"
+            required_kwargs = {"Key"}
+        elif operation == "put_item":
+            method = "save"
+            key = "PutRequest"
+            required_kwargs = {"Item"}
+        else:  # pragma: nocover
+            raise ValueError(f"Operation {operation} not supported with {cls.__name__}.batch_writer()")
+
+        if filtered_kwargs.keys() != required_kwargs:
+            raise ValueError(
+                f"Cannot provide additional arguments to {cls.__name__}.{method}() when using batch_writer()"
+            )
+
+        return {key: filtered_kwargs}
+
+    @classmethod
+    def _construct_transact_item(cls, operation: str, filtered_kwargs: Dict[str, Any]):
+        filtered_kwargs["TableName"] = cls._resolve_table_name()
+
+        if "ConditionExpression" in filtered_kwargs:
+            condition_data = transact.serialize_condition(filtered_kwargs["ConditionExpression"])
+            filtered_kwargs["ConditionExpression"] = condition_data["ConditionExpression"]
+
+            # Merging condition expression and update expression names/values so they are both present.
+            # boto3 names/values look like '#n...' and ':v...', while dyntastic uses just '#...' and ':...'
+            # so they should be mutually exclusive and not overlap at all
+            names = filtered_kwargs.setdefault("ExpressionAttributeNames", {})
+            names.update(condition_data["ExpressionAttributeNames"])
+
+            values = filtered_kwargs.setdefault("ExpressionAttributeValues", {})
+            values.update(condition_data["ExpressionAttributeValues"])
+
+        for data_key in ("Key", "Item", "ExpressionAttributeValues"):
+            if data_key in filtered_kwargs:
+                filtered_kwargs[data_key] = transact.serialize_data(filtered_kwargs[data_key])
+
+        key = {
+            "delete_item": "Delete",
+            "put_item": "Put",
+            "update_item": "Update",
+            "transaction_condition": "ConditionCheck",
+        }.get(operation)
+
+        if key is None:  # pragma: nocover
+            raise ValueError(f"Operation {operation} not supported with dyntastic.TransactionWriter")
+
+        return {key: filtered_kwargs}
+
+    @classmethod
+    def _dyntastic_call(cls, operation: str, **kwargs):
         method = getattr(cls._dynamodb_table(), operation)
         filtered_kwargs = {key: value for key, value in kwargs.items() if value is not None}
 
-        # Logic to support writing in batches without changing the API at all
-        if cls._dyntastic_batch_writer is not None and operation not in ["query", "scan"]:
-            if operation == "delete_item":
-                if filtered_kwargs.keys() != {"Key"}:
-                    raise ValueError(
-                        f"Cannot provide additional arguments to {cls.__name__}.delete() when using batch_writer()"
-                    )
+        batch_writer = cls._dyntastic_batch_writer.get()
+        transaction_writer = current_transaction_writer()
 
-                batch_item = {"DeleteRequest": filtered_kwargs}
-            elif operation == "put_item":
-                if filtered_kwargs.keys() != {"Item"}:
-                    raise ValueError(
-                        f"Cannot provide additional arguments to {cls.__name__}.save() when using batch_writer()"
-                    )
-                batch_item = {"PutRequest": filtered_kwargs}
-            else:  # pragma: nocover
-                raise ValueError(f"Operation {operation} not supported with {cls.__name__}.batch_writer()")
+        if batch_writer is not None and transaction_writer is not None:
+            raise ValueError("Cannot use batch_writer() and transaction() at the same time")
 
-            cls._dyntastic_batch_writer.add(batch_item)
-        else:
+        if (batch_writer is None and transaction_writer is None) or operation in ["query", "scan"]:
             return method(**filtered_kwargs)
+
+        if batch_writer is not None:
+            batch_item = cls._construct_batch_item(operation, filtered_kwargs)
+            batch_writer.add(batch_item)
+        elif transaction_writer is not None:
+            item = cls._construct_transact_item(operation, filtered_kwargs)
+            transaction_writer.add(cls, item)
+        else:  # pragma: nocover
+            raise Exception("Logically will always have a batch or transaction writer here")
 
     def ignore_unrefreshed(self):
         self._dyntastic_unrefreshed = False
@@ -520,7 +587,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         if object.__getattribute__(self, "_dyntastic_unrefreshed"):
             raise ValueError(
                 "Dyntastic instance was not refreshed after update. "
-                "Call refresh() or ignore_unrefreshed() to ignore safety checks"
+                "Call refresh(), or use ignore_unrefreshed() to ignore safety checks"
             )
 
         return super().__getattribute__(attr)
@@ -532,6 +599,8 @@ class Dyntastic(_TableMetadata, BaseModel):
         super().__init_subclass__(**kwargs)
 
         cls._clear_boto3_state()
+
+        cls._dyntastic_batch_writer = ContextVar("dyntastic_batch_writer", default=None)
 
         if not hasattr(cls, "__table_name__"):
             raise ValueError("Dyntastic table must have __table_name__ defined")

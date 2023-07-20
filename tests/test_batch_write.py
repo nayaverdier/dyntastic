@@ -18,7 +18,7 @@ def test_batch_write():
         MyObject(id="3").save()
         assert list(MyObject.scan()) == []
 
-    assert len(writer) == 1
+    assert writer.batches_submitted == 1
 
     assert len(list(MyObject.scan())) == 3
     MyObject(id="4").save()

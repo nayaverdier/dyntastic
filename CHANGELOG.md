@@ -1,8 +1,16 @@
 # Changelog
 
+## 0.11.0a1 2023-07-20
+
+- Add support for transaction writes using `transaction()` context manager
+  manager
+- No longer commit batch when an exception is raised during the batch context
+  manager `__exit__`
+
 ## 0.10.0 2023-04-16
 
-- Add support for `scan_index_forward` for specifying ascending (True) or descending (False) traversal of the index.
+- Add support for `scan_index_forward` for specifying ascending (True) or
+  descending (False) traversal of the index.
 
 ## 0.9.0 2023-04-15
 
@@ -31,9 +39,11 @@
 
 ## 0.6.0 2022-09-17
 
-- Added support for `__table_name__` being a `Callable[[], str]` to allow dynamic table name
+- Added support for `__table_name__` being a `Callable[[], str]` to allow
+  dynamic table name
 - Added support for batch reads and writes
-- Fixed `consistent_read` behavior for `safe_get` (previously was always set to `True`)
+- Fixed `consistent_read` behavior for `safe_get` (previously was always set to
+  `True`)
 
 ## 0.5.0 2022-05-09
 

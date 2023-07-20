@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
-        pin-versions: ["", "boto3==1.10.0 pydantic==1.7.1 \\\"importlib_metadata==1.0.0; python_version<'3.8'\\\""]
+        pin-versions: ["", "boto3==1.10.0 pydantic==1.7.1 \"\\\"importlib_metadata==1.0.0; python_version<'3.8'\\\"\""]
 
     env:
       PYTHON: ${{ matrix.python-version }}
@@ -26,14 +26,16 @@ jobs:
         cache: pip
         cache-dependency-path: setup.py
 
+    - uses: extractions/setup-just@v1
+
     - name: install
-      run: 'make install-dev ARGS="${{ matrix.pin-versions }}"'
+      run: 'just install-dev ${{ matrix.pin-versions }}'
     - name: Lint
-      run: make lint
+      run: just pre-commit
     - name: test
-      run: make test
+      run: just test
     - name: coverage
-      run: make coverage
+      run: just coverage
 
     - uses: codecov/codecov-action@v3
       with:
@@ -52,13 +54,15 @@ jobs:
     - name: set up python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.7
+        python-version: 3.9
+
+    - uses: extractions/setup-just@v1
 
     - name: install
-      run: make install-deploy
+      run: just install-deploy
 
     - name: build
-      run: make build
+      run: just build
 
     - name: upload to pypi
       run: twine upload dist/*

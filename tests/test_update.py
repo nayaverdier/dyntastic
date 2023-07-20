@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from decimal import Decimal
 
-import botocore
+import botocore.exceptions
 import pytest
 
 from dyntastic import A, Attr
@@ -52,7 +52,7 @@ def test_no_refresh(item):
         ValueError,
         match=re.escape(
             "Dyntastic instance was not refreshed after update. "
-            "Call refresh() or ignore_unrefreshed() to ignore safety checks"
+            "Call refresh(), or use ignore_unrefreshed() to ignore safety checks"
         ),
     ):
         item.my_str
@@ -72,7 +72,7 @@ def test_ignore_refresh(item):
         ValueError,
         match=re.escape(
             "Dyntastic instance was not refreshed after update. "
-            "Call refresh() or ignore_unrefreshed() to ignore safety checks"
+            "Call refresh(), or use ignore_unrefreshed() to ignore safety checks"
         ),
     ):
         item.my_str
@@ -207,7 +207,7 @@ def test_add_multiple_strings_to_new_set(collection_type, item_no_my_str_set):
 def test_cannot_add_int_to_set(item):
     with pytest.raises(
         botocore.exceptions.ClientError, match="An operand in the update expression has an incorrect data type"
-    ):  # type: ignore
+    ):
         item.update(A.my_int_set.add(5))
 
 

@@ -1,5 +1,6 @@
 import time
-from typing import Callable, Type
+from contextvars import Token
+from typing import Callable, Optional, Type
 
 from . import main
 
@@ -38,14 +39,19 @@ class BatchWriter:
         self.batch_size = batch_size
         self.batch: list = []
         self.batches_submitted = 0
+        self._context_var_reset_token: Optional[Token] = None
 
     def __enter__(self):
-        self.table._dyntastic_batch_writer = self
+        self._context_var_reset_token = self.table._dyntastic_batch_writer.set(self)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.table._dyntastic_batch_writer = None
-        self._commit()
+        assert self._context_var_reset_token is not None
+        self.table._dyntastic_batch_writer.reset(self._context_var_reset_token)
+        self._context_var_reset_token = None
+
+        if not exc_type:
+            self._commit()
 
     def _commit(self):
         if self.batch:
@@ -57,6 +63,3 @@ class BatchWriter:
         self.batch.append(item)
         if len(self.batch) >= self.batch_size:
             self._commit()
-
-    def __len__(self):
-        return self.batches_submitted
