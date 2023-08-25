@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.0a2 2023-08-25
+
+- Fix issue with query returning no results when using a filter with sparse matches
+
 ## 0.11.0a1 2023-07-20
 
 - Add support for transaction writes using `transaction()` context manager

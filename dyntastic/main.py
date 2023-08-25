@@ -178,7 +178,7 @@ class Dyntastic(_TableMetadata, BaseModel):
             last_evaluated_key = result.last_evaluated_key
             yield from result.items
 
-            if not result.has_more or not result.items:
+            if not result.has_more:
                 break  # pragma: no cover (in python 3.8/3.9, this appeared as missing coverage)
 
     @classmethod

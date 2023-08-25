@@ -4,6 +4,7 @@ import botocore
 import pytest
 
 from dyntastic import A
+from tests.conftest import MyRangeObject
 
 
 def test_zero_page_size_errors(populated_model):
@@ -157,3 +158,22 @@ def test_query_scan_index_forward(populated_range_model, scan_index_forward):
         assert timestamp1 < timestamp2
     else:
         assert timestamp2 < timestamp1
+
+
+@pytest.mark.parametrize("per_page", [25, 100, 2000, None])
+def test_query_with_empty_pages_due_to_filter(per_page):
+    MyRangeObject.create_table()
+    with MyRangeObject.batch_writer():
+        for i in range(1000):
+            MyRangeObject(id="id1", timestamp=datetime(2023, 8, 25, 0, 0, 0, i), my_str="str_1").save()
+
+    MyRangeObject(id="id1", timestamp=datetime(2023, 8, 25, 0, 0, 1), my_str="str_2").save()
+
+    results = list(
+        MyRangeObject.query(
+            "id1",
+            filter_condition=A.my_str == "str_2",
+            per_page=per_page,
+        )
+    )
+    assert len(results) == 1
