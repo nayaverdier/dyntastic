@@ -43,6 +43,10 @@ class MyObject(Dyntastic):
     my_nested_model: Optional[MyNestedModel] = None
 
 
+class MyObjectWithRequiredField(MyObject):
+    unindexed_field: str
+
+
 class MyIntObject(Dyntastic):
     __table_name__ = "my_int_object"
     __hash_key__ = "id"
@@ -60,6 +64,10 @@ class MyRangeObject(MyObject):
     __range_key__ = "timestamp"
 
     timestamp: datetime = Field(default_factory=datetime.now)
+
+
+class MyRangeObjectWithRequiredField(MyRangeObject):
+    unindexed_field: str
 
 
 class MyAliasObject(Dyntastic):
@@ -218,11 +226,28 @@ range_query_data = [
 
 @pytest.fixture
 def populated_model(request):
-    MyObject.create_table("my_str", Index("my_str", "my_int"))
+    MyObject.create_table(
+        "my_str",
+        Index("my_str", "my_int"),
+        Index("my_str", "my_int", index_name="keys-only-index", keys_only=True),
+    )
     for item in query_data:
         MyObject(**item).save()
     yield MyObject
     MyObject._clear_boto3_state()
+
+
+@pytest.fixture
+def populated_model_with_unindexed_field(request):
+    MyObjectWithRequiredField.create_table(
+        "my_str",
+        Index("my_str", "my_int"),
+        Index("my_str", "my_int", index_name="keys-only-index", keys_only=True),
+    )
+    for item in query_data:
+        MyObjectWithRequiredField(**item, unindexed_field="unindexed").save()
+    yield MyObjectWithRequiredField
+    MyObjectWithRequiredField._clear_boto3_state()
 
 
 @pytest.fixture
@@ -236,8 +261,25 @@ def populated_int_model(request):
 
 @pytest.fixture
 def populated_range_model(request):
-    MyRangeObject.create_table("my_str", Index("my_str", "my_int", index_name="my_str_my_int-index"))
+    MyRangeObject.create_table(
+        "my_str",
+        Index("my_str", "my_int", index_name="my_str_my_int-index"),
+        Index("my_str", "my_int", index_name="keys-only-index", keys_only=True),
+    )
     for item in range_query_data:
         MyRangeObject(**item).save()
     yield MyRangeObject
     MyRangeObject._clear_boto3_state()
+
+
+@pytest.fixture
+def populated_range_model_with_unindexed_field(request):
+    MyRangeObjectWithRequiredField.create_table(
+        "my_str",
+        Index("my_str", "my_int", index_name="my_str_my_int-index"),
+        Index("my_str", "my_int", index_name="keys-only-index", keys_only=True),
+    )
+    for item in range_query_data:
+        MyRangeObjectWithRequiredField(**item, unindexed_field="unindexed").save()
+    yield MyRangeObjectWithRequiredField
+    MyRangeObjectWithRequiredField._clear_boto3_state()

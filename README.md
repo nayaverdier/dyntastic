@@ -161,6 +161,26 @@ Event.query("some_event_id", consistent_read=True)
 Event.query("some_event_id", range_key_condition=A.version.begins_with("2023"), scan_index_forward=False)
 ```
 
+DynamoDB Indexes using a `KEYS_ONLY` or `INCLUDE` projection are supported:
+
+```python
+for event in Event.query("2023-09-22", index="date-keys-only-index"):
+    event.id
+    # "..."
+    event.timestamp
+    # datetime(...)
+
+    event.data
+    # ValueError: Dyntastic instance was loaded from a KEYS_ONLY or INCLUDE index.
+    #             Call refresh() to load the full item, or pass load_full_item=True
+    #             to query() or scan()
+
+# automatically fetch the full items
+for event in Event.query("2023-09-22", index="date-keys-only-index", load_full_item=True):
+    event.data
+    # {...}
+```
+
 If you need to manually handle pagination, use `query_page`:
 
 ```python

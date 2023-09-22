@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 import botocore
@@ -165,9 +166,13 @@ def test_query_with_empty_pages_due_to_filter(per_page):
     MyRangeObject.create_table()
     with MyRangeObject.batch_writer():
         for i in range(1000):
-            MyRangeObject(id="id1", timestamp=datetime(2023, 8, 25, 0, 0, 0, i), my_str="str_1").save()
+            MyRangeObject(
+                id="id1", timestamp=datetime(2023, 8, 25, 0, 0, 0, i), my_str="str_1", unindexed_field="unindexed"
+            ).save()
 
-    MyRangeObject(id="id1", timestamp=datetime(2023, 8, 25, 0, 0, 1), my_str="str_2").save()
+    MyRangeObject(
+        id="id1", timestamp=datetime(2023, 8, 25, 0, 0, 1), my_str="str_2", unindexed_field="unindexed"
+    ).save()
 
     results = list(
         MyRangeObject.query(
@@ -177,3 +182,56 @@ def test_query_with_empty_pages_due_to_filter(per_page):
         )
     )
     assert len(results) == 1
+
+
+@pytest.fixture(params=["hash_only", "hash_and_range"])
+def keys_only_model(request, populated_model_with_unindexed_field, populated_range_model_with_unindexed_field):
+    if request.param == "hash_only":
+        return populated_model_with_unindexed_field
+    elif request.param == "hash_and_range":
+        return populated_range_model_with_unindexed_field
+
+
+def test_query_manually_refresh_keys_only(keys_only_model):
+    result = list(keys_only_model.query(A.my_str == "str_1", index="keys-only-index"))
+    assert len(result) == 2
+
+    for item in result:
+        assert item.id is not None
+        assert item.my_str == "str_1"
+        assert item.my_int is not None
+
+        if keys_only_model.__range_key__ is not None:
+            assert item.timestamp is not None
+
+        for attr in ("unindexed_field", "my_str_list", "NONEXISTENT"):
+            with pytest.raises(
+                ValueError,
+                match=re.escape(
+                    "Dyntastic instance was loaded from a KEYS_ONLY or INCLUDE index. "
+                    r"Call refresh() to load the full item, or pass load_full_item=True to query() or scan()"
+                ),
+            ):
+                getattr(item, attr)
+                item.unindexed_field
+
+        item.refresh()
+
+        for attr in ("unindexed_field", "my_str_list"):
+            getattr(item, attr)
+
+
+def test_query_auto_refresh_keys_only(keys_only_model):
+    result = list(keys_only_model.query(A.my_str == "str_1", index="keys-only-index", load_full_item=True))
+    assert len(result) == 2
+
+    for item in result:
+        assert item.id is not None
+        assert item.my_str == "str_1"
+        assert item.my_int is not None
+
+        if keys_only_model.__range_key__ is not None:
+            assert item.timestamp is not None
+
+        for attr in ("unindexed_field", "my_str_list"):
+            getattr(item, attr)

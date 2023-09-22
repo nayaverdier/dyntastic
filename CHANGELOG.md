@@ -11,7 +11,6 @@
 ## 0.11.0a1 2023-07-20
 
 - Add support for transaction writes using `transaction()` context manager
-  manager
 - No longer commit batch when an exception is raised during the batch context
   manager `__exit__`
 

@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 import botocore
@@ -80,3 +81,56 @@ def test_scan_by_page(populated_range_model):
     assert len(second_page.items) == 2
     assert second_page.last_evaluated_key is None
     assert not second_page.has_more
+
+
+@pytest.fixture(params=["hash_only", "hash_and_range"])
+def keys_only_model(request, populated_model_with_unindexed_field, populated_range_model_with_unindexed_field):
+    if request.param == "hash_only":
+        return populated_model_with_unindexed_field
+    elif request.param == "hash_and_range":
+        return populated_range_model_with_unindexed_field
+
+
+def test_scan_manually_refresh_keys_only(keys_only_model):
+    result = list(keys_only_model.scan(index="keys-only-index"))
+    assert len(result) == 4
+
+    for item in result:
+        assert item.id is not None
+        assert item.my_str in ("str_1", "str_2")
+        assert item.my_int is not None
+
+        if keys_only_model.__range_key__ is not None:
+            assert item.timestamp is not None
+
+        for attr in ("unindexed_field", "my_str_list", "NONEXISTENT"):
+            with pytest.raises(
+                ValueError,
+                match=re.escape(
+                    "Dyntastic instance was loaded from a KEYS_ONLY or INCLUDE index. "
+                    r"Call refresh() to load the full item, or pass load_full_item=True to query() or scan()"
+                ),
+            ):
+                getattr(item, attr)
+                item.unindexed_field
+
+        item.refresh()
+
+        for attr in ("unindexed_field", "my_str_list"):
+            getattr(item, attr)
+
+
+def test_scan_auto_refresh_keys_only(keys_only_model):
+    result = list(keys_only_model.scan(index="keys-only-index", load_full_item=True))
+    assert len(result) == 4
+
+    for item in result:
+        assert item.id is not None
+        assert item.my_str in ("str_1", "str_2")
+        assert item.my_int is not None
+
+        if keys_only_model.__range_key__ is not None:
+            assert item.timestamp is not None
+
+        for attr in ("unindexed_field", "my_str_list"):
+            getattr(item, attr)

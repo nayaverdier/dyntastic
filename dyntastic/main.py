@@ -15,7 +15,7 @@ except ModuleNotFoundError:  # pragma: no cover
 from contextvars import ContextVar
 
 from boto3.dynamodb.conditions import ConditionBase
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel, PrivateAttr, validate_model
 
 from . import attr, transact
 from .attr import Attr, _UpdateAction, translate_updates
@@ -54,9 +54,17 @@ class ResultPage(Generic[_T]):
 
 
 class Index:
-    def __init__(self, hash_key: str, range_key: Optional[str] = None, index_name: Optional[str] = None):
+    def __init__(
+        self,
+        hash_key: str,
+        range_key: Optional[str] = None,
+        index_name: Optional[str] = None,
+        keys_only: bool = False,
+    ):
         self.hash_key = hash_key
         self.range_key = range_key
+        # TODO: support INCLUDE projection?
+        self.projection = "KEYS_ONLY" if keys_only else "ALL"
 
         if not index_name:
             if range_key:
@@ -69,6 +77,7 @@ class Index:
 
 class Dyntastic(_TableMetadata, BaseModel):
     _dyntastic_unrefreshed: bool = PrivateAttr(default=False)
+    _dyntastic_missing_attributes_from_index: bool = PrivateAttr(default=False)
 
     @classmethod
     def get_model(cls, item: dict):
@@ -81,8 +90,22 @@ class Dyntastic(_TableMetadata, BaseModel):
         return cls
 
     @classmethod
-    def _dyntastic_load_model(cls, item: dict):
-        return cls.get_model(item)(**item)
+    def _dyntastic_load_model(cls, item: dict, load_full_item: bool = False):
+        model = cls.get_model(item)
+
+        validated, fields_set, errors = validate_model(model, item)
+        if errors:
+            # assume KEYS_ONLY or INCLUDE index
+            fields_in_dynamo = {key: value for key, value in validated.items() if key in fields_set}
+            data = model.construct(**fields_in_dynamo)
+            data._dyntastic_missing_attributes_from_index = True
+        else:
+            data = model(**item)
+
+        if load_full_item:
+            data.refresh()
+
+        return data
 
     @classmethod
     def get(cls: Type[_T], hash_key, range_key=None, *, consistent_read: bool = False) -> _T:
@@ -162,6 +185,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         per_page: Optional[int] = None,
         last_evaluated_key: Optional[dict] = None,
         scan_index_forward: bool = True,
+        load_full_item: bool = False,
     ) -> Generator[_T, None, None]:
         while True:
             result = cls.query_page(
@@ -173,6 +197,7 @@ class Dyntastic(_TableMetadata, BaseModel):
                 per_page=per_page,
                 last_evaluated_key=last_evaluated_key,
                 scan_index_forward=scan_index_forward,
+                load_full_item=load_full_item,
             )
 
             last_evaluated_key = result.last_evaluated_key
@@ -193,6 +218,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         per_page: Optional[int] = None,
         last_evaluated_key: Optional[dict] = None,
         scan_index_forward: bool = True,
+        load_full_item: bool = False,
     ) -> ResultPage[_T]:
         if index and consistent_read:
             raise ValueError("Cannot perform a consistent read against a secondary index")
@@ -219,7 +245,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         )
 
         raw_items = response.get("Items")
-        items = [cls._dyntastic_load_model(item) for item in raw_items]
+        items = [cls._dyntastic_load_model(item, load_full_item=load_full_item) for item in raw_items]
         last_evaluated_key = response.get("LastEvaluatedKey")
 
         return ResultPage(items, last_evaluated_key)
@@ -233,6 +259,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         index: Optional[str] = None,
         per_page: Optional[int] = None,
         last_evaluated_key: Optional[dict] = None,
+        load_full_item: bool = False,
     ):
         while True:
             result = cls.scan_page(
@@ -241,6 +268,7 @@ class Dyntastic(_TableMetadata, BaseModel):
                 index=index,
                 per_page=per_page,
                 last_evaluated_key=last_evaluated_key,
+                load_full_item=load_full_item,
             )
 
             last_evaluated_key = result.last_evaluated_key
@@ -258,6 +286,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         index: Optional[str] = None,
         per_page: Optional[int] = None,
         last_evaluated_key: Optional[dict] = None,
+        load_full_item: bool = False,
     ) -> ResultPage[_T]:
         response = cls._dyntastic_call(
             "scan",
@@ -269,7 +298,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         )
 
         raw_items = response.get("Items")
-        items = [cls._dyntastic_load_model(item) for item in raw_items]
+        items = [cls._dyntastic_load_model(item, load_full_item=load_full_item) for item in raw_items]
         last_evaluated_key = response.get("LastEvaluatedKey")
 
         return ResultPage(items, last_evaluated_key)
@@ -319,6 +348,7 @@ class Dyntastic(_TableMetadata, BaseModel):
 
     def refresh(self):
         self._dyntastic_unrefreshed = False
+        self._dyntastic_missing_attributes_from_index = False
         data = self.get(self._dyntastic_hash_key, self._dyntastic_range_key)
         self.__dict__.update(data.__dict__)
 
@@ -384,7 +414,7 @@ class Dyntastic(_TableMetadata, BaseModel):
                     {
                         "IndexName": index.index_name,
                         "KeySchema": index_schema,
-                        "Projection": {"ProjectionType": "ALL"},
+                        "Projection": {"ProjectionType": index.projection},
                         "ProvisionedThroughput": {"ReadCapacityUnits": 1, "WriteCapacityUnits": 1},
                     }
                 )
@@ -590,7 +620,15 @@ class Dyntastic(_TableMetadata, BaseModel):
                 "Call refresh(), or use ignore_unrefreshed() to ignore safety checks"
             )
 
-        return super().__getattribute__(attr)
+        try:
+            return super().__getattribute__(attr)
+        except AttributeError:
+            if object.__getattribute__(self, "_dyntastic_missing_attributes_from_index"):
+                raise ValueError(
+                    "Dyntastic instance was loaded from a KEYS_ONLY or INCLUDE index. "
+                    "Call refresh() to load the full item, or pass load_full_item=True to query() or scan()"
+                )
+            raise
 
     class Config:
         allow_population_by_field_name = True
