@@ -5,7 +5,7 @@ import botocore.exceptions
 import pytest
 
 from dyntastic import A, Dyntastic, transaction
-from dyntastic.transact import _transaction_writer_var
+from dyntastic.transact import TRANSACTION_MAX_ITEMS, _transaction_writer_var
 
 
 class _Table(Dyntastic):
@@ -66,13 +66,12 @@ def test_multiple_regions_fails(Table: Type[_Table]):
 
 
 def test_item_limit_exceeded_without_auto_commit(Table: Type[_Table]):
-    max = 100
-    with pytest.raises(Exception, match=re.escape(f"Exceeded max items ({max}) in transaction")):
+    with pytest.raises(Exception, match=re.escape(f"Exceeded max items ({TRANSACTION_MAX_ITEMS}) in transaction")):
         with transaction():
-            for i in range(max):
+            for i in range(TRANSACTION_MAX_ITEMS):
                 Table(hash_key=f"foo{i}").save()
 
-            Table(hash_key=f"foo{max + 1}").save()
+            Table(hash_key=f"foo{TRANSACTION_MAX_ITEMS + 1}").save()
 
     assert _transaction_writer_var.get() is None
 
@@ -80,21 +79,47 @@ def test_item_limit_exceeded_without_auto_commit(Table: Type[_Table]):
     assert not list(Table.scan())
 
 
-def test_item_limit_exceeded_with_auto_commit(Table: Type[_Table]):
-    max = 100
+def test_item_default_limit_exceeded_with_auto_commit(Table: Type[_Table]):
     with transaction(auto_commit=True) as w:
-        for i in range(max):
+        for i in range(TRANSACTION_MAX_ITEMS):
             Table(hash_key=f"foo{i}").save()
 
         assert len(list(Table.scan())) == 100
         assert w.batches_submitted == 1
         assert w.items == []
 
-        Table(hash_key=f"foo{max + 1}").save()
+        Table(hash_key=f"foo{TRANSACTION_MAX_ITEMS + 1}").save()
 
     assert _transaction_writer_var.get() is None
 
     assert len(list(Table.scan())) == 101
+
+
+def test_item_custom_limit_exceeded_with_auto_commit(Table: Type[_Table]):
+    with transaction(auto_commit=True, commit_every=50) as w:
+        for i in range(50):
+            Table(hash_key=f"foo{i}").save()
+
+        assert len(list(Table.scan())) == 50
+        assert w.batches_submitted == 1
+        assert w.items == []
+
+        Table(hash_key=f"foo{51}").save()
+
+    assert _transaction_writer_var.get() is None
+
+    assert len(list(Table.scan())) == 51
+
+
+def test_commit_every_exceeds_max_items(Table: Type[_Table]):
+    with pytest.raises(
+        Exception,
+        match=re.escape(f"commit_every cannot exceed DynamoDB limit of {TRANSACTION_MAX_ITEMS} items"),
+    ):
+        with transaction(auto_commit=True, commit_every=101):
+            pass
+
+    assert _transaction_writer_var.get() is None
 
 
 def test_multiple_operations_on_same_item_errors(Table: Type[_Table]):
