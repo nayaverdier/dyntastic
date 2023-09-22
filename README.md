@@ -281,6 +281,36 @@ with MyModel.batch_writer(batch_size=2):
 # The final operation is performed here now that the `with` context has exited
 ```
 
+
+### Transactions
+
+Dyntastic supports DynamoDB transactions. Transactions are performed using the
+`transaction` context manager and can be used to perform operations across one or multiple
+tables that reside in the same region.
+
+```python
+from dyntastic import transaction
+
+with transaction():
+    item1 = SomeTable(...)
+    item2 = AnotherTable.get(...)
+    item1.save()
+    item2.update(A.something.set("..."))
+```
+
+Note that DynamoDB limits the number of items that can be written in a single
+transaction to 100 items or 4MB, whichever comes first. Dyntastic can automatically
+flush the transaction in chunks of 100 (or fewer if desired) by passing `auto_commit=True`.
+
+For example, to commit every 50 items:
+```python
+with transaction(auto_commit=True, commit_every=50):
+    item1 = SomeTable(...)
+    item2 = AnotherTable.get(...)
+    item1.save()
+    item2.update(A.something.set("..."))
+```
+
 ### Create a DynamoDB Table
 
 This functionality is currently meant only for use in unit tests as it does not
