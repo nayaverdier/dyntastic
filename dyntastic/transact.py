@@ -6,6 +6,8 @@ from boto3.dynamodb.types import TypeSerializer
 
 from . import main
 
+# DynamoDB transaction commit limit
+# https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html
 TRANSACTION_MAX_ITEMS = 100
 
 _transaction_writer_var: ContextVar[Optional["TransactionWriter"]] = ContextVar(
@@ -37,9 +39,13 @@ def serialize_condition(condition) -> dict:
 
 
 class TransactionWriter:
-    def __init__(self, auto_commit: bool = False):
+    def __init__(self, auto_commit: bool = False, commit_every: int = TRANSACTION_MAX_ITEMS):
         self.items: list = []
         self.auto_commit = auto_commit
+        assert (
+            commit_every <= TRANSACTION_MAX_ITEMS
+        ), f"commit_every cannot exceed DynamoDB limit of {TRANSACTION_MAX_ITEMS} items"
+        self.commit_max = commit_every
         self.batches_submitted = 0
         self._first_table: Optional[Type["main.Dyntastic"]] = None
         self._context_var_reset_token: Optional[Token] = None
@@ -76,6 +82,9 @@ class TransactionWriter:
     def _at_max_items(self):
         return len(self.items) == TRANSACTION_MAX_ITEMS
 
+    def _at_commit_max(self):
+        return len(self.items) == self.commit_max
+
     def add(self, table: Type["main.Dyntastic"], item: dict):
         if not self.auto_commit and self._at_max_items():
             raise Exception(f"Exceeded max items ({TRANSACTION_MAX_ITEMS}) in transaction")
@@ -83,5 +92,5 @@ class TransactionWriter:
         self._register_table(table)
         self.items.append(item)
 
-        if self.auto_commit and self._at_max_items():
+        if self.auto_commit and self._at_commit_max():
             self.commit()
