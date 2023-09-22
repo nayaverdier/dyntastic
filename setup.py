@@ -20,7 +20,7 @@ DEV_REQUIRES = [
     "flake8<5; python_version == '3.7'",
     "flake8-bugbear",
     "isort",
-    "moto",
+    "moto==4.2.2",
     "mypy",
     "pre-commit",
     "pytest",
