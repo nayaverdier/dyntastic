@@ -32,7 +32,7 @@ DEV_REQUIRES = [
 
 setup(
     name="dyntastic",
-    version="0.11.0a2",
+    version="0.11.0",
     description=description,
     long_description=long_description,
     long_description_content_type="text/markdown",

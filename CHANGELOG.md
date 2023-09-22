@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.0 2023-09-22
+
+- Make commit limit configurable on `transaction()` context manager
+
 ## 0.11.0a2 2023-08-25
 
 - Fix issue with query returning no results when using a filter with sparse matches
