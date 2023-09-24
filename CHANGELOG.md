@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.0 2023-09-22
+
+- Support KEYS_ONLY and INCLUDE DynamoDB indexes
+
 ## 0.11.0 2023-09-22
 
 - Make commit limit configurable on `transaction()` context manager
