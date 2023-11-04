@@ -15,9 +15,9 @@ except ModuleNotFoundError:  # pragma: no cover
 from contextvars import ContextVar
 
 from boto3.dynamodb.conditions import ConditionBase
-from pydantic import BaseModel, PrivateAttr, validate_model
+from pydantic import BaseModel, PrivateAttr
 
-from . import attr, transact
+from . import attr, pydantic_compat, transact
 from .attr import Attr, _UpdateAction, translate_updates
 from .batch import BatchWriter, invoke_with_backoff
 from .exceptions import DoesNotExist
@@ -75,7 +75,7 @@ class Index:
         self.index_name = index_name
 
 
-class Dyntastic(_TableMetadata, BaseModel):
+class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
     _dyntastic_unrefreshed: bool = PrivateAttr(default=False)
     _dyntastic_missing_attributes_from_index: bool = PrivateAttr(default=False)
 
@@ -93,14 +93,10 @@ class Dyntastic(_TableMetadata, BaseModel):
     def _dyntastic_load_model(cls, item: dict, load_full_item: bool = False):
         model = cls.get_model(item)
 
-        validated, fields_set, errors = validate_model(model, item)
-        if errors:
+        data, had_validation_errors = pydantic_compat.try_model_construct(model, item)
+        if had_validation_errors:
             # assume KEYS_ONLY or INCLUDE index
-            fields_in_dynamo = {key: value for key, value in validated.items() if key in fields_set}
-            data = model.construct(**fields_in_dynamo)
             data._dyntastic_missing_attributes_from_index = True
-        else:
-            data = model(**item)
 
         if load_full_item:
             data.refresh()
@@ -140,7 +136,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         keys: Union[List[str], List[Tuple[str, str]]],
         consistent_read: bool = False,
     ) -> List[_T]:
-        hash_key_type = cls.__fields__[cls.__hash_key__].type_
+        hash_key_type = pydantic_compat.field_type(cls, cls.__hash_key__)
 
         if cls.__range_key__ and not all(isinstance(key, (list, tuple)) and len(key) == 2 for key in keys):
             raise ValueError(f"Must provide (hash_key, range_key) tuples as `keys` to {cls.__name__}.batch_get()")
@@ -304,7 +300,7 @@ class Dyntastic(_TableMetadata, BaseModel):
         return ResultPage(items, last_evaluated_key)
 
     def save(self, *, condition: Optional[ConditionBase] = None):
-        data = self.dict(by_alias=True)
+        data = pydantic_compat.model_dump(self, by_alias=True)
         dynamo_serialized = attr.serialize(data)
         return self._dyntastic_call("put_item", Item=dynamo_serialized, ConditionExpression=condition)
 
@@ -449,7 +445,11 @@ class Dyntastic(_TableMetadata, BaseModel):
     def _dynamodb_type(cls, key: str) -> str:
         # Note: pragma nocover on the following line as coverage marks the ->exit branch as
         # being missed (since we can always find a field matching the key passed in)
-        python_type = next(field.type_ for field in cls.__fields__.values() if field.alias == key)  # pragma: nocover
+        python_type = next(
+            pydantic_compat.annotation(field)
+            for field_name, field in pydantic_compat.model_fields(cls).items()
+            if pydantic_compat.alias(field_name, field) == key
+        )  # pragma: nocover
         if python_type == bytes:
             return "B"
         elif python_type in (int, Decimal, float):
@@ -606,15 +606,40 @@ class Dyntastic(_TableMetadata, BaseModel):
     def ignore_unrefreshed(self):
         self._dyntastic_unrefreshed = False
 
+    def _get_private_field(self, attr: str):
+        try:
+            return getattr(self, attr)
+        except AttributeError:  # pragma: nocover
+            # Note: Without this remapping AttributeError -> Exception, it is
+            # particularly difficult to debug the issues that arise. For
+            # example, without "model_post_init" in the __getattribute__
+            # function below, the error appears as all model fields raising
+            # AttributeError on access due to private fields like
+            # _dyntastic_unrefreshed triggering that during pydantic's
+            # __getattr__.
+            #
+            # Long story short, this should catch bugs in a much more easy-to-debug way.
+
+            raise Exception(f"{attr} could not be accessed, dyntastic<->pydantic bug")
+
     def __getattribute__(self, attr: str):
+        # breakpoint()
         # All of the code in this function works to "disable" an instance
         # that has been updated with refresh=False, to avoid accidentally
         # working with stale data
 
-        if attr.startswith("_") or attr in {"refresh", "ignore_unrefreshed", "ConditionException"}:
+        if attr.startswith("_") or attr in {
+            "refresh",
+            "ignore_unrefreshed",
+            "ConditionException",
+            # Note: Without model_post_init here, _dyntastic_unrefreshed will
+            # be accessed below before pydantic v2 is fully initialized,
+            # which causes a bad state (for example, no field attribute can be accessed on the class)
+            "model_post_init",
+        }:
             return super().__getattribute__(attr)
 
-        if object.__getattribute__(self, "_dyntastic_unrefreshed"):
+        if self._get_private_field("_dyntastic_unrefreshed"):
             raise ValueError(
                 "Dyntastic instance was not refreshed after update. "
                 "Call refresh(), or use ignore_unrefreshed() to ignore safety checks"
@@ -623,18 +648,24 @@ class Dyntastic(_TableMetadata, BaseModel):
         try:
             return super().__getattribute__(attr)
         except AttributeError:
-            if object.__getattribute__(self, "_dyntastic_missing_attributes_from_index"):
+            if self._get_private_field("_dyntastic_missing_attributes_from_index"):
                 raise ValueError(
                     "Dyntastic instance was loaded from a KEYS_ONLY or INCLUDE index. "
                     "Call refresh() to load the full item, or pass load_full_item=True to query() or scan()"
                 )
             raise
 
-    class Config:
-        allow_population_by_field_name = True
-
     def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
+        # Note: in pydantic v2, our private attributes like __hash_key__ are
+        # not exposed on the model until the class is fully initialized, at
+        # which point __pydantic_init_subclass__ is called.
+        if pydantic_compat.IS_VERSION_1:  # pragma: nocover
+            cls.__pydantic_init_subclass__(**kwargs)
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs):
+        if not pydantic_compat.IS_VERSION_1:  # pragma: nocover
+            super().__pydantic_init_subclass__(**kwargs)  # type: ignore[unused-ignore,misc]
 
         cls._clear_boto3_state()
 
@@ -654,8 +685,8 @@ class Dyntastic(_TableMetadata, BaseModel):
 
 
 def _has_alias(model: Type[BaseModel], name: str) -> bool:
-    for field in model.__fields__.values():
-        if field.alias == name:
+    for field_name, field in pydantic_compat.model_fields(model).items():
+        if pydantic_compat.alias(field_name, field) == name:
             return True
 
     return False

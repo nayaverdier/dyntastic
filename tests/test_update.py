@@ -40,7 +40,7 @@ def test_set_existing_attribute(item):
     updates = [getattr(A, key).set(value) for key, value in new_data.items()]
     item.update(*updates)
     item.refresh()
-    refreshed_data = item.dict()
+    refreshed_data = dict(item)
     refreshed_data.pop("id")
     refreshed_data.pop("timestamp", None)
     assert refreshed_data == new_data

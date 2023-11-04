@@ -1,4 +1,3 @@
-import json
 from collections import defaultdict
 from decimal import Decimal
 from typing import Optional, Union
@@ -7,16 +6,17 @@ from boto3.dynamodb.conditions import Attr as _DynamoAttr
 from boto3.dynamodb.conditions import Key as _DynamoKey
 from boto3.dynamodb.types import TypeDeserializer
 from pydantic import BaseModel
-from pydantic.json import pydantic_encoder
+
+from . import pydantic_compat
 
 # serialization helpers
 
 
-# Except for sets and Decimal, json.loads(pydantic_model.json()) would work.
+# Except for sets and Decimal, pydantic_core.as_jsonable_python would work.
 # To properly support these cases, however, we need to walk through the data.
 def serialize(data):
     if isinstance(data, BaseModel):
-        return serialize(data.dict())
+        return serialize(pydantic_compat.model_dump(data))
     elif isinstance(data, dict):
         # TODO: May not actually want to filter out None. Without the filter,
         # all None fields in the pydantic model appear as Null instead of
@@ -30,7 +30,7 @@ def serialize(data):
         return data
     else:
         # handle types like datetime
-        return json.loads(json.dumps(data, default=pydantic_encoder))
+        return pydantic_compat.to_jsonable_python(data)
 
 
 # Hacky way to avoid boto3's annoying Binary type

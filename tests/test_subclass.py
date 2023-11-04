@@ -1,7 +1,7 @@
 import pytest
 from pydantic import Field
 
-from dyntastic import Dyntastic
+from dyntastic import Dyntastic, pydantic_compat
 
 
 def test_table_name_required():
@@ -68,7 +68,7 @@ def test_basic_dyntastic_instance():
         my_hash_key: str
 
     instance = MyObject(my_hash_key="example_key")
-    assert instance.dict() == {"my_hash_key": "example_key"}
+    assert pydantic_compat.model_dump(instance) == {"my_hash_key": "example_key"}
 
 
 def test_range_dyntastic_instance():
@@ -81,7 +81,7 @@ def test_range_dyntastic_instance():
         my_range_key: str
 
     instance = MyObject(my_hash_key="example_key", my_range_key="some_range_key")
-    assert instance.dict() == {"my_hash_key": "example_key", "my_range_key": "some_range_key"}
+    assert pydantic_compat.model_dump(instance) == {"my_hash_key": "example_key", "my_range_key": "some_range_key"}
 
 
 def test_model_alias():
@@ -92,7 +92,7 @@ def test_model_alias():
         my_field: str = Field(..., alias="my/alias")
 
     instance = MyAliasObject(my_field="test")
-    assert instance.dict(by_alias=True) == {"my/alias": "test"}
+    assert pydantic_compat.model_dump(instance, by_alias=True) == {"my/alias": "test"}
 
 
 def test_table_host():

@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 from uuid import uuid4
 
 import pytest
@@ -173,7 +173,7 @@ def item_no_my_str_set(request):
     instance._clear_boto3_state()
 
 
-query_data = [
+query_data: List[Dict[str, Any]] = [
     {
         "id": "id1",
         "my_str": "str_1",
@@ -196,7 +196,7 @@ query_data = [
     },
 ]
 
-range_query_data = [
+range_query_data: List[Dict[str, Any]] = [
     {
         "id": "id1",
         "timestamp": datetime(2022, 2, 12),

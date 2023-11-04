@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.0a1 2023-11-03
+
+- Add support for pydantic v2
+
 ## 0.12.0 2023-09-22
 
 - Support KEYS_ONLY and INCLUDE DynamoDB indexes

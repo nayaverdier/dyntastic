@@ -61,10 +61,10 @@ class Event(Dyntastic):
 p = Product(name="bread", price=3.49)
 # Product(product_id='d2e91c30-e701-422f-b71b-465b02749f18', name='bread', description=None, price=3.49, tax=None)
 
-p.dict()
+p.model_dump()
 # {'product_id': 'd2e91c30-e701-422f-b71b-465b02749f18', 'name': 'bread', 'description': None, 'price': 3.49, 'tax': None}
 
-p.json()
+p.model_dump_json()
 # '{"product_id": "d2e91c30-e701-422f-b71b-465b02749f18", "name": "bread", "description": null, "price": 3.49, "tax": null}'
 
 ```

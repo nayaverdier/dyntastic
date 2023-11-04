@@ -12,3 +12,8 @@ warn_unused_ignores = true
 check_untyped_defs = true
 warn_redundant_casts = true
 ignore_missing_imports = true
+
+[tool.coverage.run]
+omit = [
+    "dyntastic/pydantic_compat.py",
+]
