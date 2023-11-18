@@ -2,7 +2,7 @@
 
 ## 0.13.0 2023-11-18
 
-- No changes since 0.13.0a1
+- Add support for python3.12
 
 ## 0.13.0a1 2023-11-03
 

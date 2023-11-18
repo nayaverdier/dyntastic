@@ -10,7 +10,8 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ['3.7', '3.8', '3.9', '3.10', '3.11', '3.12']
-        pin-versions: ["", '"\"pydantic<2\""', 'boto3==1.10.0 pydantic==1.7.1 "\"importlib_metadata==1.0.0; python_version<''3.8''\""']
+        # TODO: Import error with boto3==1.10.0 on python3.12 through boto3->botocore->urllib3
+        pin-versions: ["", '"\"pydantic<2\""', '"\"boto3==1.10.0; python_version<''3.12''\"" "\"boto3==1.20.0; python_version>=''3.12''\"" pydantic==1.7.1 "\"importlib_metadata==1.0.0; python_version<''3.8''\""']
 
     env:
       PYTHON: ${{ matrix.python-version }}

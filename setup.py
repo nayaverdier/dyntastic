@@ -45,7 +45,8 @@ setup(
     license="MIT",
     packages=find_packages(exclude=("tests",)),
     install_requires=[
-        "boto3>=1.10.0",
+        "boto3>=1.10.0; python_version < '3.12'",
+        "boto3>=1.20.0; python_version >= '3.12'",
         "pydantic>=1.7.1,<3",
         "importlib-metadata>=1.0.0; python_version < '3.8'",
     ],
