@@ -16,6 +16,7 @@ def test_create_table_wait():
 def test_create_table_with_indexes():
     MyObject.create_table(Index("my_bytes"))
     assert list(MyObject.scan()) == []
+    assert list(MyObject.scan(index="my_bytes-index")) == []
 
 
 class MyRegionObject(MyObject):

@@ -665,7 +665,7 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
     @classmethod
     def __pydantic_init_subclass__(cls, **kwargs):
         if not pydantic_compat.IS_VERSION_1:  # pragma: nocover
-            super().__pydantic_init_subclass__(**kwargs)  # type: ignore[unused-ignore,misc]
+            super().__pydantic_init_subclass__(**kwargs)  # type: ignore[unused-ignore, misc]
 
         cls._clear_boto3_state()
 

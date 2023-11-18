@@ -52,7 +52,7 @@ setup(
     python_requires=">=3.7",
     extras_require={
         "dev": DEV_REQUIRES,
-        "deploy": ["twine==4.0.0"],
+        "deploy": ["twine"],
     },
     package_data={"dyntastic": ["py.typed"]},
     include_package_data=True,
