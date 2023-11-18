@@ -361,3 +361,38 @@ index2 = Index("my_field", "my_second_field", index_name="my_field_my_second_fie
 
 MyModel.create_table(index1, index2)
 ```
+
+## Contributing / Developer Setup
+
+Make sure [`just`](https://github.com/casey/just) is installed on your system
+
+To setup the dev environment and install dependencies:
+
+```bash
+# create and activate a new venv
+python3 -m venv .venv
+. .venv/bin/activate
+
+# install all dev dependencies
+just install-dev
+
+# to automatically run pre-commit before all commits
+pre-commit install
+```
+
+After making changes, lint all code + run tests:
+
+```bash
+just pre-commit
+
+# or individually:
+just isort
+just black
+just flake8
+just mypy
+just test
+
+# run a specific test/tests
+just test tests/test_save.py tests/test_get.py
+just test tests/some_save.py::test_save_aliased_item
+```
