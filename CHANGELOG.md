@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.0 2023-11-18
+
+- No changes since 0.13.0a1
+
 ## 0.13.0a1 2023-11-03
 
 - Add support for pydantic v2
