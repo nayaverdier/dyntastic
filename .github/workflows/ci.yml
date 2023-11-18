@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
+        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11', '3.12']
         pin-versions: ["", '"\"pydantic<2\""', 'boto3==1.10.0 pydantic==1.7.1 "\"importlib_metadata==1.0.0; python_version<''3.8''\""']
 
     env:
