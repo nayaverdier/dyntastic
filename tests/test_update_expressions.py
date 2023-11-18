@@ -8,7 +8,8 @@ from dyntastic.attr import translate_updates
 
 def _assert_expression(expression, attributes, values, *update_actions):
     translated_attributes = {f"#{i}": attr for i, attr in enumerate(attributes)}
-    translated_values = {f":{i}": value for i, value in enumerate(values)}
+    # TODO: look into f":{i}" being flagged by flake8 on python 3.12 as E231
+    translated_values = {":" + str(i): value for i, value in enumerate(values)}
 
     expected = {"UpdateExpression": expression}
     if translated_attributes:
