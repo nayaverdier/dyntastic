@@ -37,7 +37,7 @@ if TYPE_CHECKING:
         ...
 
 elif IS_VERSION_1:
-    FieldInfo = pydantic.fields.ModelField
+    from pydantic.fields import ModelField as FieldInfo
 
     def model_fields(model: Type[pydantic.BaseModel]) -> Dict[str, pydantic.fields.ModelField]:
         return model.__fields__
@@ -87,7 +87,7 @@ else:
         def get_origin(t):
             return getattr(t, "__origin__", None)
 
-    FieldInfo = pydantic.fields.FieldInfo
+    from pydantic.fields import FieldInfo
 
     def model_fields(model: Type[pydantic.BaseModel]) -> Dict[str, pydantic.fields.FieldInfo]:
         return model.model_fields
