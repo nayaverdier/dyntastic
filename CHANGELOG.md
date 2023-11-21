@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.1 2023-11-21
+
+- Fix import error when using `pydantic>=2.5`
+
 ## 0.13.0 2023-11-18
 
 - Add support for python3.12
