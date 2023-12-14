@@ -1,3 +1,4 @@
+import os
 import time
 import warnings
 from decimal import Decimal
@@ -24,7 +25,6 @@ from .exceptions import DoesNotExist
 from .transact import current_transaction_writer
 
 __version__ = _metadata.version("dyntastic")
-
 
 _T = TypeVar("_T", bound="Dyntastic")
 
@@ -483,11 +483,17 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
     def _dynamodb_boto3_kwargs(cls):
         kwargs = {}
 
-        if cls.__table_region__:
-            kwargs["region_name"] = cls.__table_region__
+        if cls.__table_region__ or os.getenv("DYNTASTIC_REGION"):
+            if callable(cls.__table_region__):
+                kwargs["region_name"] = cls.__table_region__()
+            else:
+                kwargs["region_name"] = cls.__table_region__ or os.getenv("DYNTASTIC_REGION")
 
-        if cls.__table_host__:
-            kwargs["endpoint_url"] = cls.__table_host__
+        if cls.__table_host__ or os.getenv("DYNTASTIC_HOST"):
+            if callable(cls.__table_host__):
+                kwargs["endpoint_url"] = cls.__table_host__()
+            else:
+                kwargs["endpoint_url"] = cls.__table_host__ or os.getenv("DYNTASTIC_HOST")
 
         return kwargs
 
