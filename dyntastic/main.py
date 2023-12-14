@@ -1,3 +1,4 @@
+import os
 import time
 import warnings
 from decimal import Decimal
@@ -483,11 +484,11 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
     def _dynamodb_boto3_kwargs(cls):
         kwargs = {}
 
-        if cls.__table_region__:
-            kwargs["region_name"] = cls.__table_region__
+        if os.getenv("DYNTASTIC_REGION") or cls.__table_region__:
+            kwargs["region_name"] = os.getenv("DYNTASTIC_REGION") or cls.__table_region__
 
-        if cls.__table_host__:
-            kwargs["endpoint_url"] = cls.__table_host__
+        if os.getenv("DYNTASTIC_HOST") or cls.__table_host__:
+            kwargs["endpoint_url"] = os.getenv("DYNTASTIC_HOST") or cls.__table_host__
 
         return kwargs
 

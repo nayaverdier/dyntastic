@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from pydantic import Field
 
@@ -108,3 +110,46 @@ def test_table_host():
     resource = MyObject._dynamodb_resource()
     assert client.meta.endpoint_url == "http://localhost:8000"
     assert resource.meta.client.meta.endpoint_url == "http://localhost:8000"
+
+
+@patch.dict("os.environ", {"DYNTASTIC_HOST": "http://localhost:8000"})
+def test_table_host_env():
+    class MyObject(Dyntastic):
+        __table_name__ = "my_object"
+        __hash_key__ = "my_hash_key"
+
+        my_hash_key: str
+
+    client = MyObject._dynamodb_client()
+    resource = MyObject._dynamodb_resource()
+    assert client.meta.endpoint_url == "http://localhost:8000"
+    assert resource.meta.client.meta.endpoint_url == "http://localhost:8000"
+
+
+def test_table_region():
+    class MyObject(Dyntastic):
+        __table_name__ = "my_object"
+        __hash_key__ = "my_hash_key"
+        __table_region__ = "fake-region"
+
+        my_hash_key: str
+
+    assert MyObject.__table_region__ == "fake-region"
+    client = MyObject._dynamodb_client()
+    resource = MyObject._dynamodb_resource()
+    assert client.meta.region_name == "fake-region"
+    assert resource.meta.client.meta.region_name == "fake-region"
+
+
+@patch.dict("os.environ", {"DYNTASTIC_REGION": "fake-region"})
+def test_table_region_env():
+    class MyObject(Dyntastic):
+        __table_name__ = "my_object"
+        __hash_key__ = "my_hash_key"
+
+        my_hash_key: str
+
+    client = MyObject._dynamodb_client()
+    resource = MyObject._dynamodb_resource()
+    assert client.meta.region_name == "fake-region"
+    assert resource.meta.client.meta.region_name == "fake-region"

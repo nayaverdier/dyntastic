@@ -69,10 +69,6 @@ p.model_dump_json()
 
 ```
 
-To explicitly define an AWS region or DynamoDB endpoint url (for using a local
-dynamodb docker instance, for example), set `__table_region__` or
-`__table_host__`
-
 ### Inserting into DynamoDB
 
 Using the `Product` example from above, simply:
@@ -360,6 +356,55 @@ index2 = Index("my_field", "my_second_field")
 index2 = Index("my_field", "my_second_field", index_name="my_field_my_second_field-index")
 
 MyModel.create_table(index1, index2)
+```
+
+## Dynamic table names
+In some circumstances you may want the table name to be defined using an environment variable.
+This can be done by setting the `__table_name__` attribute to Callable that returns the table name
+from the environment variable of your choice.
+
+```python
+import os
+os.environ["MY_TABLE_NAME"] = "my_table"
+
+class Product(Dyntastic):
+    __table_name__ = lambda: os.getenv("MY_TABLE_NAME")
+    __hash_key__ = "product_id"
+
+    product_id: str
+```
+
+## Custom dynamodb endpoint or region for local development
+To explicitly define an AWS region or DynamoDB endpoint url (for using a local
+dynamodb docker instance, for example), set `__table_region__` or
+`__table_host__`
+
+```python
+class Product(Dyntastic):
+    __table_name__ = "products"
+    __table_region__ = "us-east-1"
+    __table_host__ = "http://localhost:8000"
+    __hash_key__ = "product_id"
+
+    product_id: str
+```
+
+You can also set the environment variables `DYNTASTIC_HOST` and/or `DYNTASTIC_REGION` to control the behavior
+of the underlying boto3 client and resource objects. Note, if both the environment variables and the class
+attributes are set, the class environment variables will take precedence. This allows for easy over-riding 
+of default values in a local development environment.
+
+```python
+import os
+
+os.environ["DYNTASTIC_HOST"] = "http://localhost:8000"
+os.environ["DYNTASTIC_REGION"] = "us-east-1"
+
+class Product(Dyntastic):
+    __table_name__ = "products"
+    __hash_key__ = "product_id"
+
+    product_id: str
 ```
 
 ## Contributing / Developer Setup
