@@ -1,3 +1,4 @@
+import os
 import time
 import warnings
 from decimal import Decimal
@@ -24,7 +25,6 @@ from .exceptions import DoesNotExist
 from .transact import current_transaction_writer
 
 __version__ = _metadata.version("dyntastic")
-
 
 _T = TypeVar("_T", bound="Dyntastic")
 
@@ -442,6 +442,20 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
             return cls.__table_name__
 
     @classmethod
+    def _resolve_table_region(cls) -> Optional[str]:
+        if callable(cls.__table_region__):
+            return cls.__table_region__()
+        else:
+            return cls.__table_region__ or os.getenv("DYNTASTIC_REGION")
+
+    @classmethod
+    def _resolve_table_host(cls) -> Optional[str]:
+        if callable(cls.__table_host__):
+            return cls.__table_host__()
+        else:
+            return cls.__table_host__ or os.getenv("DYNTASTIC_HOST")
+
+    @classmethod
     def _dynamodb_type(cls, key: str) -> str:
         # Note: pragma nocover on the following line as coverage marks the ->exit branch as
         # being missed (since we can always find a field matching the key passed in)
@@ -483,11 +497,13 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
     def _dynamodb_boto3_kwargs(cls):
         kwargs = {}
 
-        if cls.__table_region__:
-            kwargs["region_name"] = cls.__table_region__
+        region = cls._resolve_table_region()
+        if region:
+            kwargs["region_name"] = region
 
-        if cls.__table_host__:
-            kwargs["endpoint_url"] = cls.__table_host__
+        host = cls._resolve_table_host()
+        if host:
+            kwargs["endpoint_url"] = host
 
         return kwargs
 
