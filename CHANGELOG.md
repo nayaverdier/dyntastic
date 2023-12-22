@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.0 2023-12-21
+
+- Add support for `__table_region__` and `__table_host__` to be lazy callables
+- Default `__table_region__` and `__table_host__` to `DYNTASTIC_REGION` and
+  `DYNTASTIC_HOST` environment variable if not otherwise defined
+
 ## 0.13.1 2023-11-21
 
 - Fix import error when using `pydantic>=2.5`
