@@ -4,7 +4,7 @@
 
 - Add support for `__table_region__` and `__table_host__` to be lazy callables
 - Default `__table_region__` and `__table_host__` to `DYNTASTIC_REGION` and
-  `DYNTASTIC_HOST` environment variable if not otherwise defined
+  `DYNTASTIC_HOST` environment variables if not otherwise defined
 
 ## 0.13.1 2023-11-21
 
