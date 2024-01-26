@@ -39,6 +39,10 @@ jobs:
       run: 'just install-dev ${{ matrix.pin-versions }}'
     - name: Lint
       run: just pre-commit
+      env:
+        # Note: Skip black on python 3.7 since latest black with breaking
+        # changes does not support python 3.7 anymore
+        SKIP: "pytest${{ (matrix.python-version == '3.7' && ',black') || '' }}"
     - name: test
       run: just test
     - name: coverage
