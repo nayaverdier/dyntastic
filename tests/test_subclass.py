@@ -28,6 +28,16 @@ def test_table_name_required():
             my_range_key: str
 
 
+def test_table_name_callable():
+    class MyObject(Dyntastic):
+        __table_name__ = lambda: "my_object"  # noqa: E731
+        __hash_key__ = "my_hash_key"
+
+        my_hash_key: str
+
+    assert MyObject._resolve_table_name() == "my_object"
+
+
 def test_hash_key_required():
     with pytest.raises(ValueError, match="Dyntastic table must have __hash_key__ defined"):
 

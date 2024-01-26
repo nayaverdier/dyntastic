@@ -15,26 +15,19 @@ if TYPE_CHECKING:
     except ImportError:
         from pydantic.fields import FieldInfo  # type: ignore[unused-ignore, assignment]
 
-    def model_fields(model: Type[pydantic.BaseModel]) -> Dict[str, FieldInfo]:
-        ...
+    def model_fields(model: Type[pydantic.BaseModel]) -> Dict[str, FieldInfo]: ...  # noqa: E704
 
-    def model_dump(instance: pydantic.BaseModel, **kwargs) -> Dict[str, Any]:
-        ...
+    def model_dump(instance: pydantic.BaseModel, **kwargs) -> Dict[str, Any]: ...  # noqa: E704
 
-    def annotation(field: FieldInfo) -> Any:
-        ...
+    def annotation(field: FieldInfo) -> Any: ...  # noqa: E704
 
-    def alias(field_name, field: Any) -> str:
-        ...
+    def alias(field_name, field: Any) -> str: ...  # noqa: E704
 
-    def to_jsonable_python(value: Any) -> Any:
-        ...
+    def to_jsonable_python(value: Any) -> Any: ...  # noqa: E704
 
-    def try_model_construct(model: Type[BaseModelT], item: dict) -> Tuple[BaseModelT, bool]:
-        ...
+    def try_model_construct(model: Type[BaseModelT], item: dict) -> Tuple[BaseModelT, bool]: ...  # noqa: E704
 
-    class BaseModel(pydantic.BaseModel):
-        ...
+    class BaseModel(pydantic.BaseModel): ...  # noqa: E701
 
 elif IS_VERSION_1:
     from pydantic.fields import ModelField as FieldInfo

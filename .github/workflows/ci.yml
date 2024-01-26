@@ -3,8 +3,8 @@ name: CI
 on:
   push:
   pull_request:
-  # run CI every day to catch issues with external dependency updates (18th
-  # minute to avoid delays during high GH Action loads)
+  # run CI every day to catch issues with external dependency updates
+  # (18th minute to avoid delays during high GH Action loads)
   schedule:
     - cron: '18 13 * * *'
 
