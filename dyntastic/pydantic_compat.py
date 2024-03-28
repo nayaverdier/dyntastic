@@ -141,7 +141,7 @@ def field_type(model: Type[pydantic.BaseModel], field: str) -> Type:
     if model_field:
         return annotation(model_field)
 
-    raise ValueError(f"Field {field} not found in model {model}")
+    raise ValueError(f"Field {field} is not present in {model}")
 
 
 __all__ = [
