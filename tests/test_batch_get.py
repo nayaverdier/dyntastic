@@ -1,6 +1,14 @@
 import pytest
 
-from .conftest import MyIntObject, MyObject, MyRangeObject, query_data, range_query_data
+from .conftest import (
+    MyAliasObject,
+    MyIntObject,
+    MyObject,
+    MyRangeObject,
+    alias_query_data,
+    query_data,
+    range_query_data,
+)
 
 hash_keys = [item["id"] for item in query_data]
 loaded_hash_data = [MyObject(**item) for item in query_data]
@@ -8,10 +16,18 @@ loaded_hash_data = [MyObject(**item) for item in query_data]
 hash_range_keys = [(item["id"], item["timestamp"]) for item in range_query_data]
 loaded_range_data = [MyRangeObject(**item) for item in range_query_data]
 
+alias_hash_keys = [item["id"] for item in alias_query_data]
+loaded_alias_hash_data = [MyAliasObject(**item) for item in alias_query_data]
+
 
 def test_get_by_hash_key(populated_model):
     assert populated_model.batch_get(hash_keys) == loaded_hash_data
     assert populated_model.batch_get([*hash_keys, "nonexistent"]) == loaded_hash_data
+
+
+def test_get_by_alias_hash_key(populated_alias_model):
+    assert populated_alias_model.batch_get(alias_hash_keys) == loaded_alias_hash_data
+    assert populated_alias_model.batch_get([*alias_hash_keys]) == loaded_alias_hash_data
 
 
 def test_get_by_int_hash_key(populated_int_model):

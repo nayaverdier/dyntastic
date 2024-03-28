@@ -134,7 +134,14 @@ else:
 
 
 def field_type(model: Type[pydantic.BaseModel], field: str) -> Type:
-    return annotation(model_fields(model)[field])
+    model_field = next(
+        (v for k, v in model_fields(model).items() if field in (k, v.alias)),
+        None,
+    )
+    if model_field:
+        return annotation(model_field)
+
+    raise ValueError(f"Field {field} not found in model {model}")
 
 
 __all__ = [
