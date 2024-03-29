@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.1 2024-03-29
+
+- Make Dyntastic.batch_get work with keys that are aliases on the model fields.
+
 ## 0.14.0 2023-12-21
 
 - Add support for `__table_region__` and `__table_host__` to be lazy callables
