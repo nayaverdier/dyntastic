@@ -17,3 +17,8 @@ ignore_missing_imports = true
 omit = [
     "dyntastic/pydantic_compat.py",
 ]
+
+[tool.coverage.report]
+exclude_also = [
+    "@overload",
+]

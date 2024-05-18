@@ -24,12 +24,15 @@ def test_get_with_range_key(range_item):
 
 
 def test_range_key_required(range_item):
-    with pytest.raises(ValueError, match="Must provide range_key to MyRangeObject.get\\(\\)"):
+    with pytest.raises(ValueError, match=r"Range key required but not provided to MyRangeObject.get\(\)"):
         MyRangeObject.get(range_item.id)
 
 
 def test_range_key_not_expected(hash_item):
-    with pytest.raises(ValueError, match="Did not expect range_key for MyObject.get\\(\\), found 'my_range_value'"):
+    with pytest.raises(
+        ValueError,
+        match="Range key `my_range_value` provided to MyObject.get\\(\\), but table does not have a range key",
+    ):
         MyObject.get(hash_item.id, "my_range_value")
 
 
@@ -37,7 +40,7 @@ def test_get_nonexistent(hash_item, range_item):
     with pytest.raises(DoesNotExist):
         MyObject.get("nonexistent")
 
-    with pytest.raises(ValueError, match="Must provide range_key to MyRangeObject.get\\(\\)"):
+    with pytest.raises(ValueError, match="Range key required but not provided to MyRangeObject.get\\(\\)"):
         MyRangeObject.get("nonexistent")
 
     with pytest.raises(DoesNotExist):
@@ -46,7 +49,7 @@ def test_get_nonexistent(hash_item, range_item):
     assert MyObject.safe_get("nonexistent") is None
     assert MyRangeObject.safe_get("nonexistent", "nonexistent_range") is None
 
-    with pytest.raises(ValueError, match="Must provide range_key to MyRangeObject.get\\(\\)"):
+    with pytest.raises(ValueError, match=r"Range key required but not provided to MyRangeObject.get\(\)"):
         MyRangeObject.safe_get("nonexistent")
 
 

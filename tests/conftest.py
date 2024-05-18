@@ -173,6 +173,19 @@ def item_no_my_str_set(request):
     instance._clear_boto3_state()
 
 
+alias_query_data: List[Dict[str, Any]] = [
+    {
+        "id": "id1",
+    },
+    {
+        "id": "id2",
+    },
+    {
+        "id": "id3",
+    },
+]
+
+
 query_data: List[Dict[str, Any]] = [
     {
         "id": "id1",
@@ -222,6 +235,15 @@ range_query_data: List[Dict[str, Any]] = [
         "my_int": 4,
     },
 ]
+
+
+@pytest.fixture
+def populated_alias_model(request):
+    MyAliasObject.create_table("id/alias")
+    for item in alias_query_data:
+        MyAliasObject(**item).save()
+    yield MyAliasObject
+    MyAliasObject._clear_boto3_state()
 
 
 @pytest.fixture

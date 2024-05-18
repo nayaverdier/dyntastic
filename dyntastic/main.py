@@ -104,18 +104,60 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
         return data
 
     @classmethod
-    def get(cls: Type[_T], hash_key, range_key=None, *, consistent_read: bool = False) -> _T:
-        if cls.__range_key__ and range_key is None:
-            raise ValueError(f"Must provide range_key to {cls.__name__}.get()")
-        elif range_key and cls.__range_key__ is None:
-            raise ValueError(f"Did not expect range_key for {cls.__name__}.get(), found '{range_key}'")
-
+    def _serialize_key(
+        cls,
+        method: str,
+        hash_key: Any,
+        range_key: Any,
+        hash_key_type: Optional[Type] = None,
+        range_key_type: Optional[Type] = None,
+    ) -> dict:
         key = {cls.__hash_key__: hash_key}
         if cls.__range_key__:
             key[cls.__range_key__] = range_key
 
-        serialized_key = attr.serialize(key)
+        if hash_key_type is None:
+            hash_key_type = pydantic_compat.field_type(cls, cls.__hash_key__)
 
+        # hash key checks
+
+        if not isinstance(hash_key, hash_key_type):
+            raise ValueError(
+                f"Expected hash key to be of type {hash_key_type.__name__}, "
+                f"got {type(hash_key).__name__} in {cls.__name__}.{method}()"
+            )
+
+        if cls.__range_key__ is None:
+            if range_key is not None:
+                raise ValueError(
+                    f"Range key `{range_key}` provided to {cls.__name__}.{method}(), "
+                    "but table does not have a range key"
+                )
+            return attr.serialize(key)
+
+        # range key checks
+
+        if range_key_type is None:
+            range_key_type = pydantic_compat.field_type(cls, cls.__range_key__)
+
+        if range_key is None:
+            raise ValueError(f"Range key required but not provided to {cls.__name__}.{method}()")
+
+        # TODO: In order to run the following check, we would need to support
+        #       *deserializing* the range key e.g. from a string to a datetime, just
+        #       for this check, then re-serialize it before sending to DynamoDB
+
+        # if not isinstance(range_key, range_key_type):
+        #     raise ValueError(
+        #         f"Expected range key to be of type {range_key_type.__name__}, "
+        #         f"got {type(range_key).__name__} in {cls.__name__}.{method}()"
+        #     )
+
+        return attr.serialize(key)
+
+    @classmethod
+    def get(cls: Type[_T], hash_key, range_key=None, *, consistent_read: bool = False) -> _T:
+        serialized_key = cls._serialize_key("get", hash_key, range_key)
         response = cls._dynamodb_table().get_item(Key=serialized_key, ConsistentRead=consistent_read)
         data = response.get("Item")
         if data:
@@ -133,28 +175,23 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
     @classmethod
     def batch_get(
         cls: Type[_T],
-        keys: Union[List[str], List[Tuple[str, str]]],
+        keys: Union[List[Any], List[Tuple[Any, Any]]],
         consistent_read: bool = False,
     ) -> List[_T]:
         hash_key_type = pydantic_compat.field_type(cls, cls.__hash_key__)
-
-        if cls.__range_key__ and not all(isinstance(key, (list, tuple)) and len(key) == 2 for key in keys):
-            raise ValueError(f"Must provide (hash_key, range_key) tuples as `keys` to {cls.__name__}.batch_get()")
-
-        if cls.__range_key__ is None and not all(isinstance(key, hash_key_type) for key in keys):
-            raise ValueError(
-                f"Must only provide {hash_key_type.__name__} types as `keys` to {cls.__name__}.batch_get()"
-            )
+        range_key_type = None
+        if cls.__range_key__:
+            range_key_type = pydantic_compat.field_type(cls, cls.__range_key__)
 
         serialized_keys = []
         for key in keys:
-            if cls.__range_key__:
-                key_dict = {cls.__hash_key__: key[0], cls.__range_key__: key[1]}
-            else:
-                assert isinstance(key, hash_key_type)
-                key_dict = {cls.__hash_key__: key}
-
-            serialized_keys.append(attr.serialize(key_dict))
+            if cls.__range_key__ and (not isinstance(key, (list, tuple)) or len(key) != 2):
+                raise ValueError(
+                    f"Must provide (hash_key, range_key) tuples as `keys` to {cls.__name__}.batch_get(), got {key}"
+                )
+            hash_key, range_key = key if cls.__range_key__ else (key, None)
+            serialized_key = cls._serialize_key("batch_get", hash_key, range_key, hash_key_type, range_key_type)
+            serialized_keys.append(serialized_key)
 
         responses = invoke_with_backoff(
             cls._dynamodb_resource().batch_get_item,
@@ -698,6 +735,13 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
 
         if cls.__range_key__ and not _has_alias(cls, cls.__range_key__):
             raise ValueError(f"Dyntastic __range_key__ is not defined as a field: '{cls.__range_key__}'")
+
+        all_aliases = set()
+        for field_name, field in pydantic_compat.model_fields(cls).items():
+            field_identifier = pydantic_compat.alias(field_name, field)
+            if field_identifier in all_aliases:
+                raise ValueError(f"Duplicate alias '{field_identifier}' found in {cls.__name__}")
+            all_aliases.add(field_identifier)
 
 
 def _has_alias(model: Type[BaseModel], name: str) -> bool:

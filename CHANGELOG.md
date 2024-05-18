@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.0 2024-05-18
+
+- Make Dyntastic.batch_get work with keys that are aliases on the model fields.
+- Improve error messages when validating keys passed to `get`, `safe_get` or `batch_get`
+- Minor fixes to `batch_get` type hints
+
 ## 0.14.0 2023-12-21
 
 - Add support for `__table_region__` and `__table_host__` to be lazy callables
