@@ -133,15 +133,22 @@ else:
             return v
 
 
-def field_type(model: Type[pydantic.BaseModel], field: str) -> Type:
-    model_field = next(
-        (v for k, v in model_fields(model).items() if field in (k, v.alias)),
-        None,
-    )
-    if model_field:
-        return annotation(model_field)
+def field_type(model: Type[pydantic.BaseModel], field: str) -> type:
+    fields = model_fields(model)
+    model_field = None
 
-    raise ValueError(f"Field {field} is not present in {model}")
+    # Try to match by alias before by name, to be consistent with pydantic
+    for field_info in fields.values():
+        if field_info.alias == field:
+            model_field = field_info
+            break
+    else:
+        model_field = fields.get(field)
+
+    if model_field is None:
+        raise ValueError(f"Field {field} is not present in {model}")
+
+    return annotation(model_field)
 
 
 __all__ = [

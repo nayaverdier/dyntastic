@@ -1,6 +1,6 @@
 from collections import defaultdict
 from decimal import Decimal
-from typing import Optional, Union
+from typing import Any, Optional, Union, overload
 
 from boto3.dynamodb.conditions import Attr as _DynamoAttr
 from boto3.dynamodb.conditions import Key as _DynamoKey
@@ -10,6 +10,14 @@ from pydantic import BaseModel
 from . import pydantic_compat
 
 # serialization helpers
+
+
+@overload
+def serialize(data: dict) -> dict: ...
+
+
+@overload
+def serialize(data: Any) -> Any: ...
 
 
 # Except for sets and Decimal, pydantic_core.as_jsonable_python would work.

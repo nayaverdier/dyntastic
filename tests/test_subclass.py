@@ -214,3 +214,55 @@ def test_table_host_region_callable():
     assert resource.meta.client.meta.endpoint_url == "http://localhost:8000"
     assert client.meta.region_name == "fake-region"
     assert resource.meta.client.meta.region_name == "fake-region"
+
+
+def test_table_with_swapped_aliases_works():
+    class MyObject(Dyntastic):
+        __table_name__ = "my_object"
+        __hash_key__ = "my_hash_key"
+
+        my_hash_key: str = Field(..., alias="another_field")
+        another_field: str = Field(..., alias="my_hash_key")
+
+    instance = MyObject(my_hash_key="my_hash_key", another_field="another_field")
+    assert instance.another_field == "my_hash_key"
+    assert instance.my_hash_key == "another_field"
+    assert instance._dyntastic_key_dict == {"my_hash_key": "another_field"}
+
+
+def test_table_with_duplicate_aliases_errors():
+    with pytest.raises(ValueError, match="Duplicate alias 'my_hash_key' found in MyObject"):
+
+        class MyObject1(Dyntastic):
+            __table_name__ = "my_object"
+            __hash_key__ = "my_hash_key"
+
+            my_hash_key: str
+            another_field: str = Field(..., alias="my_hash_key")
+
+    with pytest.raises(ValueError, match="Duplicate alias 'my_hash_key' found in MyObject"):
+
+        class MyObject2(Dyntastic):
+            __table_name__ = "my_object"
+            __hash_key__ = "my_hash_key"
+
+            my_hash_key: str = Field(..., alias="my_hash_key")
+            another_field: str = Field(..., alias="my_hash_key")
+
+    with pytest.raises(ValueError, match="Duplicate alias 'my_hash_key' found in MyObject"):
+
+        class MyObject3(Dyntastic):
+            __table_name__ = "my_object"
+            __hash_key__ = "my_hash_key"
+
+            my_hash_key: str = Field(..., alias="my_hash_key")
+            another_field: str = Field(..., alias="my_hash_key")
+
+    with pytest.raises(ValueError, match="Duplicate alias 'some_alias' found in MyObject"):
+
+        class MyObject4(Dyntastic):
+            __table_name__ = "my_object"
+            __hash_key__ = "some_alias"
+
+            my_hash_key: str = Field(..., alias="some_alias")
+            another_field: str = Field(..., alias="some_alias")
