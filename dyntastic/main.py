@@ -109,8 +109,8 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
         method: str,
         hash_key: Any,
         range_key: Any,
-        hash_key_type: type | None = None,
-        range_key_type: type | None = None,
+        hash_key_type: Optional[Type] = None,
+        range_key_type: Optional[Type] = None,
     ) -> dict:
         key = {cls.__hash_key__: hash_key}
         if cls.__range_key__:
