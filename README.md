@@ -213,7 +213,7 @@ Examples:
 my_item.update(A.my_field.set("new_value"))
 my_item.update(A.my_field.set(A.another_field))
 my_item.update(A.my_int.set(A.another_int - 10))
-my_item.update(A.my_int.plus(1))
+my_item.update(A.my_int.set(A.my_int + 1))
 my_item.update(A.my_list.append("new_element"))
 my_item.update(A.some_attribute.set_default("value_if_not_already_present"))
 
@@ -224,6 +224,13 @@ my_item.update(A.my_string_set.add("new_element"))
 my_item.update(A.my_string_set.add({"new_1", "new_2"}))
 my_item.update(A.my_string_set.delete("element_to_remove"))
 my_item.update(A.my_string_set.delete({"remove_1", "remove_2"}))
+
+# Multiple updates can be performed at once
+my_item.update(
+    A.my_field.set("new_value"),
+    A.my_int.set(A.my_int + 1),
+    ...
+)
 ```
 
 The data is automatically refreshed after the update request. To disable this
