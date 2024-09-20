@@ -605,7 +605,7 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
         filtered_kwargs["TableName"] = cls._resolve_table_name()
 
         if "ConditionExpression" in filtered_kwargs:
-            condition_data = transact.serialize_condition(filtered_kwargs["ConditionExpression"], False)
+            condition_data = transact.serialize_condition(filtered_kwargs["ConditionExpression"])
             filtered_kwargs["ConditionExpression"] = condition_data["ConditionExpression"]
 
             # Merging condition expression and update expression names/values so they are both present.

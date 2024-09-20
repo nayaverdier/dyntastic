@@ -28,13 +28,13 @@ def serialize_data(item: dict) -> dict:
     return {k: _dynamodb_serializer.serialize(v) for k, v in item.items()}
 
 
-def serialize_condition(condition, do_serialization = True) -> dict:
+def serialize_condition(condition) -> dict:
     expression = _dynamodb_builder.build_expression(condition)
 
     return {
         "ConditionExpression": expression.condition_expression,
         "ExpressionAttributeNames": expression.attribute_name_placeholders,
-        "ExpressionAttributeValues": serialize_data(expression.attribute_value_placeholders) if do_serialization else expression.attribute_value_placeholders,
+        "ExpressionAttributeValues": expression.attribute_value_placeholders,
     }
 
 
