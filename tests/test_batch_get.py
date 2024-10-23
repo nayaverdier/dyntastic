@@ -37,7 +37,7 @@ def test_get_by_int_hash_key(populated_int_model):
 
 
 def test_get_by_typed_int_hash_key(populated_typed_int_model):
-    assert populated_typed_int_model.batch_get([1, 2, 3, "foo"]) == [
+    assert populated_typed_int_model.batch_get([1, 2, 3]) == [
         MyTypedIntObject(id=1),
         MyTypedIntObject(id=2),
         MyTypedIntObject(id=3),

@@ -77,7 +77,7 @@ class Index:
         self.index_name = index_name
 
 
-class Dyntastic(_TableMetadata, pydantic_compat.BaseModel, Generic[_THash, _TRange]):
+class Dyntastic(Generic[_THash, _TRange], _TableMetadata, pydantic_compat.BaseModel):
     _dyntastic_unrefreshed: bool = PrivateAttr(default=False)
     _dyntastic_missing_attributes_from_index: bool = PrivateAttr(default=False)
 
