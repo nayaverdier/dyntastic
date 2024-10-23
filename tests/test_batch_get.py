@@ -3,9 +3,9 @@ import pytest
 from .conftest import (
     MyAliasObject,
     MyIntObject,
-    MyTypedIntObject,
     MyObject,
     MyRangeObject,
+    MyTypedIntObject,
     alias_query_data,
     query_data,
     range_query_data,

@@ -114,7 +114,7 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel, Generic[_THash, _TRan
         hash_key_type: Optional[Type] = None,
         range_key_type: Optional[Type] = None,
     ) -> dict:
-        key: dict[str, Union[_THash, _TRange]] = {cls.__hash_key__: hash_key}
+        key: Dict[str, Union[_THash, _TRange]] = {cls.__hash_key__: hash_key}
         if cls.__range_key__:
             key[cls.__range_key__] = range_key
 

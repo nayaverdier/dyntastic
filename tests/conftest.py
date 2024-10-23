@@ -54,8 +54,8 @@ class MyIntObject(Dyntastic):
     id: int
 
 
-class MyTypedIntObject(Dyntastic[int]):
-    __table_name__ = "my_int_object"
+class MyTypedIntObject(Dyntastic[int, None]):
+    __table_name__ = "my_typed_int_object"
     __hash_key__ = "id"
 
     id: int
