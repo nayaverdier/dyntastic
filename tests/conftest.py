@@ -54,6 +54,13 @@ class MyIntObject(Dyntastic):
     id: int
 
 
+class MyTypedIntObject(Dyntastic[int]):
+    __table_name__ = "my_int_object"
+    __hash_key__ = "id"
+
+    id: int
+
+
 # No hash key defined because this inherits from MyObject
 # This class also covers testing __table_name__ being a function instead of a string
 class MyRangeObject(MyObject):
@@ -279,6 +286,15 @@ def populated_int_model(request):
         MyIntObject(id=i).save()
     yield MyIntObject
     MyIntObject._clear_boto3_state()
+
+
+@pytest.fixture
+def populated_typed_int_model(request):
+    MyTypedIntObject.create_table()
+    for i in range(10):
+        MyTypedIntObject(id=i).save()
+    yield MyTypedIntObject
+    MyTypedIntObject._clear_boto3_state()
 
 
 @pytest.fixture
