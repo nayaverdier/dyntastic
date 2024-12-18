@@ -31,11 +31,19 @@ def serialize_data(item: dict) -> dict:
 def serialize_condition(condition) -> dict:
     expression = _dynamodb_builder.build_expression(condition)
 
-    return {
+    serialized = {
         "ConditionExpression": expression.condition_expression,
         "ExpressionAttributeNames": expression.attribute_name_placeholders,
-        "ExpressionAttributeValues": expression.attribute_value_placeholders,
     }
+
+    # DynamoDB errors if ExpressionAttributeValues is present but empty.
+    # At the time of writing this comment, Moto doesn't enforce this, but real DynamoDB does:
+    # https://github.com/getmoto/moto/issues/8405
+    # https://github.com/nayaverdier/dyntastic/issues/27
+    if expression.attribute_value_placeholders:
+        serialized["ExpressionAttributeValues"] = expression.attribute_value_placeholders
+
+    return serialized
 
 
 class TransactionWriter:

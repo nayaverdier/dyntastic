@@ -614,8 +614,9 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
             names = filtered_kwargs.setdefault("ExpressionAttributeNames", {})
             names.update(condition_data["ExpressionAttributeNames"])
 
-            values = filtered_kwargs.setdefault("ExpressionAttributeValues", {})
-            values.update(condition_data["ExpressionAttributeValues"])
+            if "ExpressionAttributeValues" in condition_data:
+                values = filtered_kwargs.setdefault("ExpressionAttributeValues", {})
+                values.update(condition_data["ExpressionAttributeValues"])
 
         for data_key in ("Key", "Item", "ExpressionAttributeValues"):
             if data_key in filtered_kwargs:
