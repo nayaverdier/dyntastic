@@ -34,7 +34,7 @@ def serialize_condition(condition) -> dict:
     return {
         "ConditionExpression": expression.condition_expression,
         "ExpressionAttributeNames": expression.attribute_name_placeholders,
-        "ExpressionAttributeValues": serialize_data(expression.attribute_value_placeholders),
+        "ExpressionAttributeValues": expression.attribute_value_placeholders,
     }
 
 
