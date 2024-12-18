@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.16.0 2024-12-18
+
+- Fix double serialization of conditions inside a transaction (Thanks @krewx)
+- Fix validation error due to empty ExpressionAttributeValue during transaction
+  (Thanks @regoawt for reporting)
+
 ## 0.15.0 2024-05-18
 
 - Make Dyntastic.batch_get work with keys that are aliases on the model fields.
