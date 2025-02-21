@@ -1,5 +1,6 @@
 from collections import defaultdict
 from decimal import Decimal
+from ipaddress import IPv4Address, IPv4Interface, IPv4Network
 from typing import Any, Optional, Union, overload
 
 from boto3.dynamodb.conditions import Attr as _DynamoAttr
@@ -36,6 +37,8 @@ def serialize(data):
         return set(map(serialize, data))
     elif isinstance(data, (Decimal, str, int, bytes, bool, float, type(None))):
         return data
+    elif isinstance(data, (IPv4Address, IPv4Interface, IPv4Network)):
+        return serialize(str(data))
     else:
         # handle types like datetime
         return pydantic_compat.to_jsonable_python(data)
@@ -195,7 +198,9 @@ class _ActionRemove(_UpdateAction):
         # ensure that subtypes of int which might have a different
         # __str__ method cannot allow injection
         if index is not None and type(index) is not int:
-            raise ValueError(f"Dyntastic remove() update must be given an int, found '{index.__class__.__name__}'")
+            raise ValueError(
+                f"Dyntastic remove() update must be given an int, found '{index.__class__.__name__}'"
+            )
 
         self.path = path
         self.index = index
