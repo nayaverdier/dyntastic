@@ -198,9 +198,7 @@ class _ActionRemove(_UpdateAction):
         # ensure that subtypes of int which might have a different
         # __str__ method cannot allow injection
         if index is not None and type(index) is not int:
-            raise ValueError(
-                f"Dyntastic remove() update must be given an int, found '{index.__class__.__name__}'"
-            )
+            raise ValueError(f"Dyntastic remove() update must be given an int, found '{index.__class__.__name__}'")
 
         self.path = path
         self.index = index

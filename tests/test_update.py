@@ -1,7 +1,7 @@
-from ipaddress import IPv4Address, IPv4Interface, IPv4Network
 import re
 from datetime import datetime
 from decimal import Decimal
+from ipaddress import IPv4Address, IPv4Interface, IPv4Network
 
 import botocore.exceptions
 import pytest
@@ -36,9 +36,9 @@ def test_set_existing_attribute(item):
         "my_dict": {"d": 4, "e": 5},
         "my_nested_data": {"foo": ["bar", "baz", "bat"]},
         "my_nested_model": MyNestedModel(sample_field="updated"),
-        "my_ip_address": IPv4Address('10.66.0.1'),
-        "my_ip_interface": IPv4Interface('10.66.0.1'),
-        "my_ip_network": IPv4Network('10.66.0.1/32')
+        "my_ip_address": IPv4Address("10.66.0.1"),
+        "my_ip_interface": IPv4Interface("10.66.0.1"),
+        "my_ip_network": IPv4Network("10.66.0.1/32"),
     }
 
     updates = [getattr(A, key).set(value) for key, value in new_data.items()]
