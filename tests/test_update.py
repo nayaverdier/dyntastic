@@ -36,12 +36,12 @@ def test_set_existing_attribute(item):
         "my_dict": {"d": 4, "e": 5},
         "my_nested_data": {"foo": ["bar", "baz", "bat"]},
         "my_nested_model": MyNestedModel(sample_field="updated"),
-        "my_ipv4_address": IPv4Address("10.66.0.1"),
-        "my_ipv4_interface": IPv4Interface("10.66.0.1"),
-        "my_ipv4_network": IPv4Network("10.66.0.1/32"),
-        "my_ipv6_address": IPv6Address("001:db8::"),
-        "my_ipv6_interface": IPv6Interface("001:db8::"),
-        "my_ipv6_network": IPv6Network("2001:db8::1000/124"),
+        "my_ipv4_address": IPv4Address("99.66.0.1"),
+        "my_ipv4_interface": IPv4Interface("99.66.0.1"),
+        "my_ipv4_network": IPv4Network("99.66.0.1/32"),
+        "my_ipv6_address": IPv6Address("991:db8::"),
+        "my_ipv6_interface": IPv6Interface("991:db8::"),
+        "my_ipv6_network": IPv6Network("9901:db8::1000/124"),
     }
 
     updates = [getattr(A, key).set(value) for key, value in new_data.items()]
