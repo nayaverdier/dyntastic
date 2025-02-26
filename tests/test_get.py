@@ -2,7 +2,7 @@ import pytest
 
 from dyntastic import DoesNotExist
 
-from .conftest import MyIntObject, MyObject, MyRangeObject
+from .conftest import MyIntObject, MyObject, MyRangeObject, MyTypedIntObject
 
 
 def test_get_by_hash_key(hash_item):
@@ -15,6 +15,12 @@ def test_get_by_int_hash_key(populated_int_model):
     retrieved = MyIntObject.get(1)
     safe_retrieved = MyIntObject.safe_get(1)
     assert retrieved == safe_retrieved == MyIntObject(id=1)
+
+
+def test_get_by_typed_int_hash_key(populated_typed_int_model):
+    retrieved = MyTypedIntObject.get(1)
+    safe_retrieved = MyTypedIntObject.safe_get(1)
+    assert retrieved == safe_retrieved == MyTypedIntObject(id=1)
 
 
 def test_get_with_range_key(range_item):
