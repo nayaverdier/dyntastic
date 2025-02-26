@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.0 2025-02-25
+
+- Add support for ipv4 and ipv6 IP addresses (Thanks @GitToby)
+- Fix handling of aliases, including bug where tables with an aliased hash key
+  could not be deleted (Thanks @Nathan-Kr for reporting)
+
 ## 0.16.0 2024-12-18
 
 - Fix double serialization of conditions inside a transaction (Thanks @krewx)
