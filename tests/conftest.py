@@ -1,12 +1,13 @@
 import os
 from datetime import datetime
 from decimal import Decimal
+from ipaddress import IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network
 from typing import Any, Dict, List, Optional, Set
 from uuid import uuid4
 
 import pytest
 from moto import mock_dynamodb
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, IPvAnyAddress, IPvAnyInterface, IPvAnyNetwork
 
 from dyntastic import Dyntastic, Index
 
@@ -41,6 +42,12 @@ class MyObject(Dyntastic):
     my_dict: Optional[dict] = None
     my_nested_data: Optional[Any] = None
     my_nested_model: Optional[MyNestedModel] = None
+    my_ipv4_address: Optional[IPvAnyAddress] = None
+    my_ipv4_interface: Optional[IPvAnyInterface] = None
+    my_ipv4_network: Optional[IPvAnyNetwork] = None
+    my_ipv6_address: Optional[IPv6Address] = None
+    my_ipv6_interface: Optional[IPv6Interface] = None
+    my_ipv6_network: Optional[IPv6Network] = None
 
 
 class MyObjectWithRequiredField(MyObject):
@@ -93,6 +100,12 @@ def _create_item(DyntasticModel, **kwargs):
         "my_dict": {"a": 1, "b": 2, "c": 3},
         "my_nested_data": [{"a": [{"foo": "bar"}], "b": "test"}, "some_string"],
         "my_nested_model": MyNestedModel(sample_field="hello"),
+        "my_ipv4_address": IPv4Address("10.66.0.1"),
+        "my_ipv4_interface": IPv4Interface("10.66.0.1"),
+        "my_ipv4_network": IPv4Network("10.66.0.1/32"),
+        "my_ipv6_address": IPv6Address("001:db8::"),
+        "my_ipv6_interface": IPv6Interface("001:db8::"),
+        "my_ipv6_network": IPv6Network("2001:db8::1000/124"),
     }
     data.update(kwargs)
 
