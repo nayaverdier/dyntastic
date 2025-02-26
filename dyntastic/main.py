@@ -2,7 +2,7 @@ import os
 import time
 import warnings
 from decimal import Decimal
-from typing import Any, Callable, Dict, Generator, Generic, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, ClassVar, Dict, Generator, Generic, List, Optional, Tuple, Type, TypeVar, Union
 
 import boto3
 
@@ -16,7 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover
 from contextvars import ContextVar
 
 from boto3.dynamodb.conditions import ConditionBase
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel
 
 from . import attr, pydantic_compat, transact
 from .attr import Attr, _UpdateAction, translate_updates
@@ -76,8 +76,8 @@ class Index:
 
 
 class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
-    _dyntastic_unrefreshed: bool = PrivateAttr(default=False)
-    _dyntastic_missing_attributes_from_index: bool = PrivateAttr(default=False)
+    _dyntastic_unrefreshed: bool = False
+    _dyntastic_missing_attributes_from_index: bool = False
 
     @classmethod
     def get_model(cls, item: dict):
@@ -511,14 +511,36 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
             # TODO: use boto3.dynamodb.types.TypeSerializer._get_dynamodb_type() as a reference
             return "S"
 
+    # To support using either a field's name or alias as __hash_key__ and
+    # __range_key__, we need to search for the actual attribute name when
+    # reading the value
+    _cached_hash_key_attribute: ClassVar[str | None] = None
+    _cached_range_key_attribute: ClassVar[str | None] = None
+
+    @classmethod
+    def _dyntastic_hash_key_attribute(cls) -> str:
+        if cls._cached_hash_key_attribute is None:
+            cls._cached_hash_key_attribute = pydantic_compat.attribute_from_field(cls, cls.__hash_key__)
+
+        return cls._cached_hash_key_attribute
+
+    @classmethod
+    def _dyntastic_range_key_attribute(cls) -> str:
+        assert cls.__range_key__
+
+        if cls._cached_range_key_attribute is None:
+            cls._cached_range_key_attribute = pydantic_compat.attribute_from_field(cls, cls.__range_key__)
+
+        return cls._cached_range_key_attribute
+
     @property
     def _dyntastic_hash_key(self):
-        return getattr(self, self.__hash_key__)
+        return getattr(self, self._dyntastic_hash_key_attribute())
 
     @property
     def _dyntastic_range_key(self):
         if self.__range_key__:
-            return getattr(self, self.__range_key__)
+            return getattr(self, self._dyntastic_range_key_attribute())
         else:
             return None
 

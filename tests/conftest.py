@@ -82,6 +82,7 @@ class MyAliasObject(Dyntastic):
     __hash_key__ = "id/alias"
 
     id: str = Field(..., alias="id/alias")
+    my_str: str
 
 
 def _create_item(DyntasticModel, **kwargs):
@@ -141,7 +142,7 @@ def item(request):
 @pytest.fixture
 def alias_item():
     MyAliasObject.create_table()
-    instance = MyAliasObject(id="foo")
+    instance = MyAliasObject(id="foo", my_str="my_str_value")
     yield instance
     instance._clear_boto3_state()
 
@@ -189,12 +190,15 @@ def item_no_my_str_set(request):
 alias_query_data: List[Dict[str, Any]] = [
     {
         "id": "id1",
+        "my_str": "str1",
     },
     {
         "id": "id2",
+        "my_str": "str2",
     },
     {
         "id": "id3",
+        "my_str": "str3",
     },
 ]
 

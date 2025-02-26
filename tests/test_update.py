@@ -53,6 +53,11 @@ def test_set_existing_attribute(item):
     assert refreshed_data == new_data
 
 
+def test_refresh_alias_item(alias_item):
+    alias_item.update(A.my_str.set("bar"))
+    assert alias_item.my_str == "bar"
+
+
 def test_no_refresh(item):
     item.update(A.my_str.set("bar"), refresh=False)
     with pytest.raises(
