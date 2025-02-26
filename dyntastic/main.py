@@ -16,7 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover
 from contextvars import ContextVar
 
 from boto3.dynamodb.conditions import ConditionBase
-from pydantic import BaseModel
+from pydantic import BaseModel, PrivateAttr
 
 from . import attr, pydantic_compat, transact
 from .attr import Attr, _UpdateAction, translate_updates
@@ -76,8 +76,8 @@ class Index:
 
 
 class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
-    _dyntastic_unrefreshed: bool = False
-    _dyntastic_missing_attributes_from_index: bool = False
+    _dyntastic_unrefreshed: bool = PrivateAttr(default=False)
+    _dyntastic_missing_attributes_from_index: bool = PrivateAttr(default=False)
 
     @classmethod
     def get_model(cls, item: dict):
@@ -514,8 +514,8 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
     # To support using either a field's name or alias as __hash_key__ and
     # __range_key__, we need to search for the actual attribute name when
     # reading the value
-    _cached_hash_key_attribute: ClassVar[str | None] = None
-    _cached_range_key_attribute: ClassVar[str | None] = None
+    _cached_hash_key_attribute: ClassVar[Optional[str]] = None
+    _cached_range_key_attribute: ClassVar[Optional[str]] = None
 
     @classmethod
     def _dyntastic_hash_key_attribute(cls) -> str:
