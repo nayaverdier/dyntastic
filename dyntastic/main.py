@@ -420,10 +420,9 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
 
     # TODO: support more configuration for new table
     @classmethod
-    def create_table(cls, *indexes: Union[str, Index], wait: bool = True):
+    def create_table(cls, *indexes: Union[str, Index], wait: bool = True, billing_mode: str = "PROVISIONED"):
         """Creates a DynamoDB table (primarily for testing, limited configuration supported)"""
 
-        throughput = {"ReadCapacityUnits": 1, "WriteCapacityUnits": 1}
         attributes = {cls.__hash_key__}
         key_schema = [{"AttributeName": cls.__hash_key__, "KeyType": "HASH"}]
         if cls.__range_key__:
@@ -458,13 +457,19 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
             {"AttributeName": attr, "AttributeType": cls._dynamodb_type(attr)} for attr in attributes
         ]
 
-        cls._dynamodb_resource().create_table(
-            TableName=cls._resolve_table_name(),
-            KeySchema=key_schema,
-            AttributeDefinitions=attribute_definitions,
-            ProvisionedThroughput=throughput,
+        create_kwargs: Dict[str, Any] = {
+            "TableName": cls._resolve_table_name(),
+            "KeySchema": key_schema,
+            "AttributeDefinitions": attribute_definitions,
             **kwargs,
-        )
+        }
+
+        if billing_mode.upper() == "PAY_PER_REQUEST":
+            create_kwargs["BillingMode"] = "PAY_PER_REQUEST"
+        else:
+            create_kwargs["ProvisionedThroughput"] = {"ReadCapacityUnits": 1, "WriteCapacityUnits": 1}
+
+        cls._dynamodb_resource().create_table(**create_kwargs)
 
         if wait:
             cls._wait_until_exists()
