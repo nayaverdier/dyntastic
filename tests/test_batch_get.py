@@ -5,6 +5,7 @@ from .conftest import (
     MyIntObject,
     MyObject,
     MyRangeObject,
+    MyTypedIntObject,
     alias_query_data,
     query_data,
     range_query_data,
@@ -33,6 +34,14 @@ def test_get_by_alias_hash_key(populated_alias_model):
 def test_get_by_int_hash_key(populated_int_model):
     assert populated_int_model.batch_get([1, 2, 3]) == [MyIntObject(id=1), MyIntObject(id=2), MyIntObject(id=3)]
     assert populated_int_model.batch_get([1, 2, 3, 1000]) == [MyIntObject(id=1), MyIntObject(id=2), MyIntObject(id=3)]
+
+
+def test_get_by_typed_int_hash_key(populated_typed_int_model):
+    assert populated_typed_int_model.batch_get([1, 2, 3]) == [
+        MyTypedIntObject(id=1),
+        MyTypedIntObject(id=2),
+        MyTypedIntObject(id=3),
+    ]
 
 
 def test_get_by_hash_key_and_range_key(populated_range_model):
