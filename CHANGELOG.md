@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.0 2025-04-05
+
+- Add support for specifying `billing_mode` when creating a table (Thanks
+  @groovecoder)
+
 ## 0.17.0 2025-02-25
 
 - Add support for ipv4 and ipv6 IP addresses (Thanks @GitToby)
