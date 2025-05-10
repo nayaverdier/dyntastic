@@ -27,6 +27,8 @@ from .transact import current_transaction_writer
 __version__ = _metadata.version("dyntastic")
 
 _T = TypeVar("_T", bound="Dyntastic")
+_THash = TypeVar("_THash")
+_TRange = TypeVar("_TRange")
 
 
 class _TableMetadata:
@@ -75,7 +77,7 @@ class Index:
         self.index_name = index_name
 
 
-class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
+class Dyntastic(Generic[_THash, _TRange], _TableMetadata, pydantic_compat.BaseModel):
     _dyntastic_unrefreshed: bool = PrivateAttr(default=False)
     _dyntastic_missing_attributes_from_index: bool = PrivateAttr(default=False)
 
@@ -107,12 +109,12 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
     def _serialize_key(
         cls,
         method: str,
-        hash_key: Any,
-        range_key: Any,
+        hash_key: _THash,
+        range_key: _TRange,
         hash_key_type: Optional[Type] = None,
         range_key_type: Optional[Type] = None,
     ) -> dict:
-        key = {cls.__hash_key__: hash_key}
+        key: Dict[str, Union[_THash, _TRange]] = {cls.__hash_key__: hash_key}
         if cls.__range_key__:
             key[cls.__range_key__] = range_key
 
@@ -156,7 +158,13 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
         return attr.serialize(key)
 
     @classmethod
-    def get(cls: Type[_T], hash_key, range_key=None, *, consistent_read: bool = False) -> _T:
+    def get(
+        cls: Type[_T],
+        hash_key: _THash,
+        range_key: Optional[_TRange] = None,
+        *,
+        consistent_read: bool = False,
+    ) -> _T:
         serialized_key = cls._serialize_key("get", hash_key, range_key)
         response = cls._dynamodb_table().get_item(Key=serialized_key, ConsistentRead=consistent_read)
         data = response.get("Item")
@@ -166,7 +174,13 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
             raise DoesNotExist
 
     @classmethod
-    def safe_get(cls: Type[_T], hash_key, range_key=None, *, consistent_read: bool = False) -> Optional[_T]:
+    def safe_get(
+        cls: Type[_T],
+        hash_key: _THash,
+        range_key: Optional[_TRange] = None,
+        *,
+        consistent_read: bool = False,
+    ) -> Optional[_T]:
         try:
             return cls.get(hash_key, range_key=range_key, consistent_read=consistent_read)
         except DoesNotExist:
@@ -175,7 +189,7 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
     @classmethod
     def batch_get(
         cls: Type[_T],
-        keys: Union[List[Any], List[Tuple[Any, Any]]],
+        keys: Union[List[_THash], List[Tuple[_THash, _TRange]]],
         consistent_read: bool = False,
     ) -> List[_T]:
         hash_key_type = pydantic_compat.field_type(cls, cls.__hash_key__)
@@ -189,7 +203,7 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
                 raise ValueError(
                     f"Must provide (hash_key, range_key) tuples as `keys` to {cls.__name__}.batch_get(), got {key}"
                 )
-            hash_key, range_key = key if cls.__range_key__ else (key, None)
+            hash_key, range_key = key if cls.__range_key__ and isinstance(key, tuple) else (key, None)
             serialized_key = cls._serialize_key("batch_get", hash_key, range_key, hash_key_type, range_key_type)
             serialized_keys.append(serialized_key)
 
@@ -209,7 +223,7 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
     @classmethod
     def query(
         cls: Type[_T],
-        hash_key,
+        hash_key: _THash,
         *,
         consistent_read: bool = False,
         range_key_condition=None,
@@ -242,7 +256,7 @@ class Dyntastic(_TableMetadata, pydantic_compat.BaseModel):
     @classmethod
     def query_page(
         cls: Type[_T],
-        hash_key: Union[str, ConditionBase],
+        hash_key: Union[str, ConditionBase, _THash],
         *,
         consistent_read: bool = False,
         range_key_condition: Optional[ConditionBase] = None,
