@@ -1,5 +1,6 @@
 from collections import defaultdict
 from decimal import Decimal
+from ipaddress import IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network
 from typing import Any, Optional, Union, overload
 
 from boto3.dynamodb.conditions import Attr as _DynamoAttr
@@ -36,6 +37,8 @@ def serialize(data):
         return set(map(serialize, data))
     elif isinstance(data, (Decimal, str, int, bytes, bool, float, type(None))):
         return data
+    elif isinstance(data, (IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network)):
+        return str(data)
     else:
         # handle types like datetime
         return pydantic_compat.to_jsonable_python(data)

@@ -133,22 +133,35 @@ else:
             return v
 
 
-def field_type(model: Type[pydantic.BaseModel], field: str) -> type:
+def _field_data(model: Type[pydantic.BaseModel], field: str) -> Tuple[str, FieldInfo]:
     fields = model_fields(model)
     model_field = None
+    field_attribute = None
 
     # Try to match by alias before by name, to be consistent with pydantic
-    for field_info in fields.values():
+    for attribute, field_info in fields.items():
         if field_info.alias == field:
             model_field = field_info
+            field_attribute = attribute
             break
     else:
         model_field = fields.get(field)
+        field_attribute = field
 
     if model_field is None:
         raise ValueError(f"Field {field} is not present in {model}")
 
+    return field_attribute, model_field
+
+
+def field_type(model: Type[pydantic.BaseModel], field: str) -> type:
+    _, model_field = _field_data(model, field)
     return annotation(model_field)
+
+
+def attribute_from_field(model: Type[pydantic.BaseModel], field: str) -> str:
+    attribute, _ = _field_data(model, field)
+    return attribute
 
 
 __all__ = [

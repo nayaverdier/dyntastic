@@ -29,3 +29,11 @@ def test_create_table_region():
     assert MyRegionObject._dynamodb_client().meta.region_name == "us-east-2"
     MyRegionObject.create_table()
     assert list(MyRegionObject.scan()) == []
+
+
+def test_create_table_on_demand():
+    MyObject.create_table(wait=True, billing_mode="PAY_PER_REQUEST")
+    assert list(MyObject.scan()) == []
+
+    desc = MyObject._dynamodb_client().describe_table(TableName=MyObject.__table_name__)
+    assert desc["Table"]["BillingModeSummary"]["BillingMode"] == "PAY_PER_REQUEST"

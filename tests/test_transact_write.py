@@ -216,7 +216,7 @@ def test_update_warns_on_refresh(Table: Type[_Table]):
 
 
 @pytest.mark.parametrize("condition", [None, A.hash_key.not_exists()])
-@pytest.mark.parametrize("condition_check", [None, A.hash_key.exists()])
+@pytest.mark.parametrize("condition_check", [None, A.hash_key.exists(), A.hash_key == "foo"])
 def test_save_single_table(Table: Type[_Table], condition, condition_check):
     with transaction() as w:
         item = Table(hash_key="foo")
@@ -232,7 +232,7 @@ def test_save_single_table(Table: Type[_Table], condition, condition_check):
 
 
 @pytest.mark.parametrize("condition", [None, A.hash_key.not_exists()])
-@pytest.mark.parametrize("condition_check", [None, A.hash_key.exists()])
+@pytest.mark.parametrize("condition_check", [None, A.hash_key.exists(), (A.hash_key == "foo") | (A.hash_key == "bar")])
 def test_save_multiple_tables(Table: Type[_Table], Table2: Type[_Table2], condition, condition_check):
     with transaction() as w:
         item1 = Table(hash_key="foo")

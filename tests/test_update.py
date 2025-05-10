@@ -1,6 +1,7 @@
 import re
 from datetime import datetime
 from decimal import Decimal
+from ipaddress import IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network
 
 import botocore.exceptions
 import pytest
@@ -35,6 +36,12 @@ def test_set_existing_attribute(item):
         "my_dict": {"d": 4, "e": 5},
         "my_nested_data": {"foo": ["bar", "baz", "bat"]},
         "my_nested_model": MyNestedModel(sample_field="updated"),
+        "my_ipv4_address": IPv4Address("99.66.0.1"),
+        "my_ipv4_interface": IPv4Interface("99.66.0.1"),
+        "my_ipv4_network": IPv4Network("99.66.0.1/32"),
+        "my_ipv6_address": IPv6Address("991:db8::"),
+        "my_ipv6_interface": IPv6Interface("991:db8::"),
+        "my_ipv6_network": IPv6Network("9901:db8::1000/124"),
     }
 
     updates = [getattr(A, key).set(value) for key, value in new_data.items()]
@@ -44,6 +51,11 @@ def test_set_existing_attribute(item):
     refreshed_data.pop("id")
     refreshed_data.pop("timestamp", None)
     assert refreshed_data == new_data
+
+
+def test_refresh_alias_item(alias_item):
+    alias_item.update(A.my_str.set("bar"))
+    assert alias_item.my_str == "bar"
 
 
 def test_no_refresh(item):

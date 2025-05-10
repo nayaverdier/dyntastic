@@ -227,7 +227,7 @@ def test_table_with_swapped_aliases_works():
     instance = MyObject(my_hash_key="my_hash_key", another_field="another_field")
     assert instance.another_field == "my_hash_key"
     assert instance.my_hash_key == "another_field"
-    assert instance._dyntastic_key_dict == {"my_hash_key": "another_field"}
+    assert instance._dyntastic_key_dict == {"my_hash_key": "my_hash_key"}
 
 
 def test_table_with_duplicate_aliases_errors():

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.18.0 2025-04-05
+
+- Add support for specifying `billing_mode` when creating a table (Thanks
+  @groovecoder)
+
+## 0.17.0 2025-02-25
+
+- Add support for ipv4 and ipv6 IP addresses (Thanks @GitToby)
+- Fix handling of aliases, including bug where tables with an aliased hash key
+  could not be deleted (Thanks @Nathan-Kr for reporting)
+
+## 0.16.0 2024-12-18
+
+- Fix double serialization of conditions inside a transaction (Thanks @krewx)
+- Fix validation error due to empty ExpressionAttributeValue during transaction
+  (Thanks @regoawt for reporting)
+
 ## 0.15.0 2024-05-18
 
 - Make Dyntastic.batch_get work with keys that are aliases on the model fields.

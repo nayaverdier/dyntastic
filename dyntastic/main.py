@@ -2,7 +2,7 @@ import os
 import time
 import warnings
 from decimal import Decimal
-from typing import Any, Callable, Dict, Generator, Generic, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, ClassVar, Dict, Generator, Generic, List, Optional, Tuple, Type, TypeVar, Union
 
 import boto3
 
@@ -434,10 +434,9 @@ class Dyntastic(Generic[_THash, _TRange], _TableMetadata, pydantic_compat.BaseMo
 
     # TODO: support more configuration for new table
     @classmethod
-    def create_table(cls, *indexes: Union[str, Index], wait: bool = True):
+    def create_table(cls, *indexes: Union[str, Index], wait: bool = True, billing_mode: str = "PROVISIONED"):
         """Creates a DynamoDB table (primarily for testing, limited configuration supported)"""
 
-        throughput = {"ReadCapacityUnits": 1, "WriteCapacityUnits": 1}
         attributes = {cls.__hash_key__}
         key_schema = [{"AttributeName": cls.__hash_key__, "KeyType": "HASH"}]
         if cls.__range_key__:
@@ -472,13 +471,19 @@ class Dyntastic(Generic[_THash, _TRange], _TableMetadata, pydantic_compat.BaseMo
             {"AttributeName": attr, "AttributeType": cls._dynamodb_type(attr)} for attr in attributes
         ]
 
-        cls._dynamodb_resource().create_table(
-            TableName=cls._resolve_table_name(),
-            KeySchema=key_schema,
-            AttributeDefinitions=attribute_definitions,
-            ProvisionedThroughput=throughput,
+        create_kwargs: Dict[str, Any] = {
+            "TableName": cls._resolve_table_name(),
+            "KeySchema": key_schema,
+            "AttributeDefinitions": attribute_definitions,
             **kwargs,
-        )
+        }
+
+        if billing_mode.upper() == "PAY_PER_REQUEST":
+            create_kwargs["BillingMode"] = "PAY_PER_REQUEST"
+        else:
+            create_kwargs["ProvisionedThroughput"] = {"ReadCapacityUnits": 1, "WriteCapacityUnits": 1}
+
+        cls._dynamodb_resource().create_table(**create_kwargs)
 
         if wait:
             cls._wait_until_exists()
@@ -525,14 +530,36 @@ class Dyntastic(Generic[_THash, _TRange], _TableMetadata, pydantic_compat.BaseMo
             # TODO: use boto3.dynamodb.types.TypeSerializer._get_dynamodb_type() as a reference
             return "S"
 
+    # To support using either a field's name or alias as __hash_key__ and
+    # __range_key__, we need to search for the actual attribute name when
+    # reading the value
+    _cached_hash_key_attribute: ClassVar[Optional[str]] = None
+    _cached_range_key_attribute: ClassVar[Optional[str]] = None
+
+    @classmethod
+    def _dyntastic_hash_key_attribute(cls) -> str:
+        if cls._cached_hash_key_attribute is None:
+            cls._cached_hash_key_attribute = pydantic_compat.attribute_from_field(cls, cls.__hash_key__)
+
+        return cls._cached_hash_key_attribute
+
+    @classmethod
+    def _dyntastic_range_key_attribute(cls) -> str:
+        assert cls.__range_key__
+
+        if cls._cached_range_key_attribute is None:
+            cls._cached_range_key_attribute = pydantic_compat.attribute_from_field(cls, cls.__range_key__)
+
+        return cls._cached_range_key_attribute
+
     @property
     def _dyntastic_hash_key(self):
-        return getattr(self, self.__hash_key__)
+        return getattr(self, self._dyntastic_hash_key_attribute())
 
     @property
     def _dyntastic_range_key(self):
         if self.__range_key__:
-            return getattr(self, self.__range_key__)
+            return getattr(self, self._dyntastic_range_key_attribute())
         else:
             return None
 
@@ -628,8 +655,9 @@ class Dyntastic(Generic[_THash, _TRange], _TableMetadata, pydantic_compat.BaseMo
             names = filtered_kwargs.setdefault("ExpressionAttributeNames", {})
             names.update(condition_data["ExpressionAttributeNames"])
 
-            values = filtered_kwargs.setdefault("ExpressionAttributeValues", {})
-            values.update(condition_data["ExpressionAttributeValues"])
+            if "ExpressionAttributeValues" in condition_data:
+                values = filtered_kwargs.setdefault("ExpressionAttributeValues", {})
+                values.update(condition_data["ExpressionAttributeValues"])
 
         for data_key in ("Key", "Item", "ExpressionAttributeValues"):
             if data_key in filtered_kwargs:
